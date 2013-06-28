@@ -25,7 +25,7 @@
  */
 
 body {
-    overflow: auto !important;
+    overflow-y: auto !important;
 }
 
 #mainLogin {
@@ -161,6 +161,59 @@ body {
     margin-right: auto;
 }
 
+/**
+ * Demo site CSS
+ */
+#mainInfo {
+    overflow: auto;
+}
+
+.loginInfoPanel {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .legalText {
     text-align: center;
+    font: 12px arial,tahoma,helvetica,sans-serif;
 }
+
+.legalLicense {
+    padding-bottom: 20px;
+}
+
+.legalDisclaimerAuthorizedUse {
+    font-weight: bold;
+}
+
+.legalDisclaimerAccess {
+    font-weight: bold;
+    font-style: inherit;
+    color: #BEBCBD;
+}
+
+.legalDisclaimerPrototype {
+    font-weight: bold;
+    /*color: #BEBCBD;*/
+    margin-top: 15px;
+    text-transform: uppercase;
+}
+
+.legalDisclaimerNoWarranty {
+    font-weight: bold;
+    color: #ff0000;
+    text-decoration: underline;
+    text-transform: uppercase;
+}
+
+.legalDisclaimerJHUAPL {
+    font-weight: bold;
+    color: #BEBCBD;
+    font-style: italic;
+}
+
+.legalDisclaimerNoPublicDisclosure {
+    font-weight: bold;
+    color: #ff0000;
+}
+

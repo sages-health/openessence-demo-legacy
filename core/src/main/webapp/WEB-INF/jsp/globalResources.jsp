@@ -45,7 +45,7 @@
 
 <%-- TODO use conditional loader (Modernizr.load or yepnope.js) --%>
 <script type="text/javascript" src="${globalContextPath}/js/lib/console-polyfill/console-polyfill.js"></script>
-	   
+
 <script type="text/javascript" src="${globalContextPath}/js/ext-3.0.3/adapter/ext/ext-base.js"></script>
 <script type="text/javascript" src="${globalContextPath}/js/ext-3.0.3/ext-all.js"></script>
 <%-- <script type="text/javascript" src="${globalContextPath}/js/ext-3.0.3/ext-all-debug.js"></script> --%>

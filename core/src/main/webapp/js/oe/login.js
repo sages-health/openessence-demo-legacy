@@ -24,7 +24,7 @@
  * FOR LOST PROFITS.
  */
 
-Ext.namespace('OE.login');
+Ext.namespace("OE.login");
 
 Ext.onReady(function () {
     if (Ext.isIE6 || Ext.isIE7) {
@@ -204,8 +204,28 @@ Ext.onReady(function () {
                 },
                 items: [
                     {
-                        cls: 'legalText',
+                        cls: 'legalText legalLicense',
                         html: messagesBundle['legal.license']
+                    },
+                    {
+                        cls: 'legalText legalDisclaimerAuthorizedUse',
+                        html: messagesBundle['legal.disclaimer.authorizeduse']
+                    },
+                    {
+                        cls: 'legalText legalDisclaimerAccess',
+                        html: messagesBundle['legal.disclaimer.access']
+                    },
+                    {
+                        cls: 'legalText legalDisclaimerPrototype',
+                        html: messagesBundle['legal.disclaimer.prototype']
+                    },
+                    {
+                        cls: 'legalText legalDisclaimerNoWarranty',
+                        html: messagesBundle['legal.disclaimer.warranty']
+                    },
+                    {
+                        cls: 'legalText legalDisclaimerJHUAPL',
+                        html: messagesBundle['legal.disclaimer.jhuapl']
                     }
                 ]
             }
