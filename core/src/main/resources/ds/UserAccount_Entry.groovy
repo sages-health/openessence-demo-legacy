@@ -46,7 +46,7 @@ import java.util.Collection
 
 class UserAccount_Entry extends GroovyOeDataEntrySource {
 
-    Set roles = ['ROLE_USER']
+    Set roles = ['ROLE_ADMIN']
 
     UserAccount_Entry() {
         DimensionBean d
