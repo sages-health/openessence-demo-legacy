@@ -23,6 +23,8 @@ CREATE TABLE "user" (
   id                      SERIAL PRIMARY KEY,
   name                    TEXT    NOT NULL UNIQUE,
   password                TEXT    NOT NULL,
+  salt                    TEXT NOT NULL,
+  algorithm               TEXT NOT NULL,
   enabled                 BOOLEAN NOT NULL DEFAULT FALSE,
   non_expired             BOOLEAN NOT NULL DEFAULT TRUE,
   credentials_non_expired BOOLEAN NOT NULL DEFAULT TRUE,
@@ -30,8 +32,8 @@ CREATE TABLE "user" (
 );
 
 -- add admin/admin login
-INSERT INTO "user" (name, password, enabled, non_expired, credentials_non_expired, account_non_locked)
-  VALUES ('admin', '805c31ff4a51bb8641c1fd00ce3eccb680e49be3', TRUE, TRUE, TRUE, TRUE);
+INSERT INTO "user" (name, password, salt, algorithm, enabled, non_expired, credentials_non_expired, account_non_locked)
+  VALUES ('admin', '805c31ff4a51bb8641c1fd00ce3eccb680e49be3', 'bACzDYExfadmin203948576', 'SHA-1', TRUE, TRUE, TRUE, TRUE);
 
 CREATE TABLE role (
   id          TEXT NOT NULL PRIMARY KEY,
