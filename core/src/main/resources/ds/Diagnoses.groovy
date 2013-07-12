@@ -31,20 +31,19 @@ class Diagnoses extends GroovyDataSource {
 
     Diagnoses() {
 
-        setMetaData([grid: [sortcolumn: 'Order', sortorder: 'asc']])
-
-        init([id: 'Id', sqlCol: 'id', sqlType: FieldType.INTEGER, isResult: true, isFilter: true,
-                metaData: [grid: [width: 100]]])
-
-        init([id: 'Name', sqlCol: 'name', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-                metaData: [grid: [width: 300]]])
-
-        init([id: 'Color', sqlCol: 'color', sqlType: FieldType.TEXT, isResult: true, isEdit: true,
-                metaData: [form: [xtype: 'colorfield', allowBlank: true]]])
-
-        init([id: 'Order', sqlCol: 'order_id', sqlType: FieldType.INTEGER, isResult: true,
-                metaData: [grid: [width: 100]]])
-
+        setMetaData([ grid: [ sortcolumn: 'Order', sortorder: 'asc' ] ] as HashMap)
+        
+        init([id: 'Id',           sqlCol: 'id',             sqlType: FieldType.INTEGER, isResult: true, isFilter: true, 
+            metaData: [ grid: [ width: 100 ] ] ] as HashMap)
+        init([id: 'NameId',         sqlCol: 'name',           sqlType: FieldType.TEXT,    isResult: true, isFilter: true, 
+            metaData: [ grid: [ hidden: true, width: 300 ] ] ] as HashMap)
+        init([id: 'Name',         sqlCol: 'name',           sqlType: FieldType.TEXT,    isResult: true, isFilter: true, 
+            metaData: [ grid: [ width: 300 ] ] ] as HashMap)
+		init([id: 'Color', sqlCol: 'color',    sqlType: FieldType.TEXT,    isResult: true, isEdit: true,
+			metaData: [ form: [ xtype: 'colorfield', allowBlank: true] ] ] as HashMap)
+        init([id: 'Order',        sqlCol: 'order_id',       sqlType: FieldType.INTEGER, isResult: true, 
+            metaData: [ grid: [ width: 100 ] ] ] as HashMap)
+                                
         setDimensions(dimensionBeans)
         setBaseDetailsQuery('diagnoses')
     }
