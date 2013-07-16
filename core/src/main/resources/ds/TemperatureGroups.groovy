@@ -37,6 +37,9 @@ class TemperatureGroups extends GroovyDataSource {
         init([id: 'Id', sqlCol: 'id', sqlType: FieldType.INTEGER, isResult: true, isFilter: true,
                 metaData: [grid: [width: 100]]])
 
+		init([id: 'TempGroupId',   sqlCol: 'description', sqlType: FieldType.TEXT,    isResult: true,
+			metaData: [ grid: [ width: 200 ] ] ] as HashMap)
+		
         init([id: 'TemperatureGroup', sqlCol: 'description', sqlType: FieldType.TEXT, isResult: true,
                 metaData: [grid: [width: 200]]])
 

@@ -91,78 +91,62 @@ class DataCaseReportAdvanced extends GroovyDataSource {
                 strokeOpacity: '0.9'
         ]
 
-        setMetaData([form: [supportMap: true],
-                menuCfg: [[parent: 'report', src: 'OE.report.datasource.main', order: 1]],
-                grid: [width: 200, sortcolumn: 'Id', sortorder: 'desc'],
-                mapInfo: mapInfo
-
-        ])
+        setMetaData([ form: [ supportMap: true ], 
+        	menuCfg: [[parent: 'report', src: 'OE.report.datasource.main', order: 1]], 
+        	grid: [ width: 200, sortcolumn: 'Id', sortorder: 'desc' ],
+        	mapInfo: mapInfo
+        	
+        ] as HashMap)
 
         init([id: 'Id', sqlCol: 'distinct(dr.id) as datareport', sqlColAlias: 'datareport', sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
+            metaData: [ grid: [ width: 80 ] ] ] as HashMap)
 
-        d = init([id: 'District', sqlCol: 'district', sqlType: FieldType.TEXT, isResult: true, isFilter: true, isGrouping: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect', sortcolumn: 'Order']]])
+        d=init([id: 'District',  sqlCol: 'district',     sqlType: FieldType.TEXT,  isResult: true, isFilter: true, isGrouping: true, 
+            metaData: [ form: [ width: 300, xtype: 'superboxselect', sortcolumn: 'Order'] ] ] as HashMap)
         d.possibleValuesDsName = 'Districts'
 
-        init([id: 'PatientId', sqlCol: 'dr.patient_id', sqlType: FieldType.TEXT, isResult: true, isFilter: false,
-                metaData: [grid: [width: 120]]])
+        init([id: 'PatientId', sqlCol: 'dr.patient_id',  sqlType: FieldType.TEXT, isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 120 ] ] ] as HashMap)
 
-        d = init([id: 'ReportDate', sqlCol: 'dr.report_date', sqlType: FieldType.DATE, isResult: true, isFilter: true, isGrouping: true,
-                metaData: [grid: [width: 100]]])
+        d=init([id: 'ReportDate',    sqlCol: 'dr.report_date',       sqlType: FieldType.DATE,    isResult: true, isFilter: true, isGrouping: true,
+            metaData: [ grid: [ width: 100 ] ] ] as HashMap)
         d.resolutionHandlers = (Map<String, ResolutionHandler>) [
-                'daily': new PgSqlDailyHandler(),
-                'weekly': new PgSqlWeeklyHandler(0),
-                'monthly': new PgSqlMonthlyHandler()
-        ]
+            'daily': new edu.jhuapl.openessence.datasource.jdbc.timeresolution.sql.pgsql.PgSqlDailyHandler(),
+            'weekly': new edu.jhuapl.openessence.datasource.jdbc.timeresolution.sql.pgsql.PgSqlWeeklyHandler(0),
+            'monthly': new edu.jhuapl.openessence.datasource.jdbc.timeresolution.sql.pgsql.PgSqlMonthlyHandler()
+         ]
 
-        d = init([id: 'ReturnVisit', sqlCol: 'dr.return_visit', sqlType: FieldType.BOOLEAN, isResult: true, isFilter: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect'], grid: [width: 80, renderBooleanAsTernary: true]]])
-        d.possibleValuesDsData = [[true, 'Yes'], [false, 'No']]
+        d=init([id: 'ReturnVisit',   sqlCol: 'dr.return_visit',      sqlType: FieldType.BOOLEAN, isResult: true, isFilter: true,
+            metaData: [ form: [ width: 300, xtype: 'superboxselect' ], grid: [ width: 80, renderBooleanAsTernary: true ] ] ] as HashMap)
+        d.possibleValuesDsData=[[true, 'Yes'], [false, 'No']]
+        
+        d=init([id: 'Sex',       sqlCol: 'dr.sex',      sqlType: FieldType.TEXT,    isResult: true, isEdit: true, isFilter: true, isGrouping: true, 
+			metaData: [ form: [ width: 300, xtype: 'superboxselect' ], grid: [ width: 40 ] ] ] as HashMap)
+        d.possibleValuesDsData=[ ['F', 'Female'], ['M', 'Male'], ['UNK', 'Unknown'] ]
+        
+		init([id: 'Age',              sqlCol: 'dr.age',               sqlType: FieldType.INTEGER, isResult: true,  isFilter: false,
+			metaData: [ grid: [ width: 80 ] ] ] as HashMap)
+		d=init([id: 'AgeGroupName', sqlCol: 'ag.description',           sqlType: FieldType.TEXT,    isResult: true,  isFilter: true,
+			metaData: [ grid: [ width: 100 ], form: [ width: 300, xtype: 'superboxselect', sortcolumn: 'Order' ] ] ] as HashMap)
+		d.possibleValuesDsName = "AgeGroups"
+		d.possibleValuesDsResults = ["AgeGroupId", "AgeGroup", "Order"]
+        
+        init([id: 'Weight',           sqlCol: 'dr.weight',            sqlType: FieldType.DOUBLE,  isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 80 ] ] ] as HashMap)
+        
+        init([id: 'Bp_Systolic',     sqlCol: 'dr.bp_systolic',       sqlType: FieldType.DOUBLE,  isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 80 ] ] ] as HashMap)
+        init([id: 'Bp_Diastolic',    sqlCol: 'dr.bp_diastolic',      sqlType: FieldType.DOUBLE,  isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 80 ] ] ] as HashMap)
+        init([id: 'Pulse',           sqlCol: 'dr.pulse',             sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 80 ] ] ] as HashMap)
 
-        d = init([id: 'Sex', sqlCol: 'dr.sex', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true, isGrouping: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect'], grid: [width: 40]]])
-        d.possibleValuesDsData = [['F', 'Female'], ['M', 'Male'], ['UNK', 'Unknown']]
-
-        init([id: 'Age', sqlCol: 'dr.age', sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
-
-        d = init([id: 'AgeGroup', sqlCol: 'ag.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect']]])
-        d.possibleValuesDsName = "AgeGroups"
-
-        init([id: 'AgeGroupName', sqlCol: 'ag.description', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'AgeGroup',
-                metaData: [grid: [width: 100]]])
-
-        init([id: 'Weight', sqlCol: 'dr.weight', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
-
-        init([id: 'Bp_Systolic', sqlCol: 'dr.bp_systolic', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
-
-        init([id: 'Bp_Diastolic', sqlCol: 'dr.bp_diastolic', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
-
-        init([id: 'Pulse', sqlCol: 'dr.pulse', sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
-
-        init([id: 'Temperature', sqlCol: 'dr.temperature', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
-                metaData: [grid: [width: 100]]])
-
-        d = init([id: 'TemperatureGroups', sqlCol: 'temp.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect']]])
-        d.possibleValuesDsName = "TemperatureGroups"
-
-        init([id: 'TemperatureGroupName', sqlCol: 'temp.description', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'TemperatureGroups',
-                metaData: [grid: [width: 100]]])
-
-        //The "advanced" report does not use these because grouping by symptom or diagnosis explodes one report into multiple
-        //used for grouping queries
-//        init([id: 'Symptom10Name',        sqlCol: 'sym10.name',   sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-//            metaData: [ form: [ xtype: 'hidden', width: 300 ], grid: [ width: 100 ] ] ])
-//        init([id: 'Diagnosis10Name',        sqlCol: 'd10.name',   sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-//            metaData: [ form: [ xtype: 'hidden', width: 300 ], grid: [ width: 100 ] ] ])
-//        
+        init([id: 'Temperature',          sqlCol: 'dr.temperature',   sqlType: FieldType.DOUBLE,  isResult: true, isFilter: false,
+            metaData: [ grid: [ width: 100 ] ] ] as HashMap)
+        d=init([id: 'TemperatureGroupName', sqlCol: 'temp.description', sqlType: FieldType.TEXT,   isResult: true, isFilter: true,
+            metaData: [ grid: [ width: 100 ], form: [ width: 300, xtype: 'superboxselect', sortcolumn: 'Order' ]  ] ] as HashMap)
+		d.possibleValuesDsName = "TemperatureGroups"
+		d.possibleValuesDsResults = ["TempGroupId", "TemperatureGroup", "Order"]
 
         init([id: 'AllSymptoms', sqlCol: 'allsymptoms', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
                 metaData: [form: [xtype: 'hidden'], grid: [width: 200]]])
