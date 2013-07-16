@@ -31,8 +31,15 @@ import edu.jhuapl.openessence.datasource.entry.DbKeyValMap
 import edu.jhuapl.openessence.datasource.jdbc.DimensionBean
 import edu.jhuapl.openessence.groovy.GroovyOeDataEntrySource
 import edu.jhuapl.openessence.security.OEPasswordEncoder
+import edu.jhuapl.openessence.security.EncryptionDetails
+import org.springframework.security.crypto.bcrypt.BCrypt
+import java.security.SecureRandom
 
 class User_Entry extends GroovyOeDataEntrySource {
+
+    private static final String currentAlgo = "BCrypt"
+    private static final int logRounds = 13;
+    private static final SecureRandom secureRand = new SecureRandom();
 
     Set roles = ['ROLE_ADMIN']
 
@@ -46,42 +53,46 @@ class User_Entry extends GroovyOeDataEntrySource {
         addMasterTable([tableName: 'users', pks: ['Id'] as HashSet])
 
         addChildTable([tableName: 'user_role_mapping',
-                              columns: ['c1_UserId', 'c1_RoleId'],
-                              pks: ['c1_UserId', 'c1_RoleId'] as HashSet,
-                              fksToParent: ['c1_UserId': 'Id'],
-                              possibleValuesDsName: 'Role',
-                              possibleValuesDsFks: ['c1_RoleId': 'Id'],
-                              metaData: [form: [xtype: 'grid']]
-                      ])
+                columns: ['c1_UserId', 'c1_RoleId'],
+                pks: ['c1_UserId', 'c1_RoleId'] as HashSet,
+                fksToParent: ['c1_UserId': 'Id'],
+                possibleValuesDsName: 'Role',
+                possibleValuesDsFks: ['c1_RoleId': 'Id'],
+                metaData: [form: [xtype: 'grid']]
+        ])
 
         /* REQUIRED FIELDS - do not remove - values can be statically injected */
         init([id: 'Id', sqlCol: 'id', sqlType: FieldType.INTEGER, isResult: true, isEdit: true, isFilter: true, isAutoGen: true,
-                     metaData: [form: [xtype: 'hidden', allowBlank: true]]])
+                metaData: [form: [xtype: 'hidden', allowBlank: true]]])
         init([id: 'UserName', sqlCol: 'name', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true])
         init([id: 'Password', sqlCol: 'password', sqlType: FieldType.TEXT, isResult: false, isEdit: true, isFilter: false,
-                     metaData: [form: [password: true]]])
+                metaData: [form: [password: true]]])
+        init([id: 'Salt', sqlCol: 'salt', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
+                     metaData: [grid: [xtype: 'hidden'], form: [xtype: 'hidden', allowBlank: true]]] as HashMap)
+        init([id: 'Algorithm', sqlCol: 'algorithm', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
+                     metaData: [grid: [xtype: 'hidden'], form: [xtype: 'hidden', allowBlank: true]]] as HashMap)
         init([id: 'Enabled', sqlCol: 'enabled', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
         init([id: 'NonExpired', sqlCol: 'non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
         init([id: 'CredentialsNonExpired', sqlCol: 'credentials_non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
         init([id: 'AccountNonLocked', sqlCol: 'account_non_locked', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
 
         init([id: 'LastName', sqlCol: 'lastname', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true,
-                     metaData: [grid: [width: 120], form: [allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [allowBlank: true]]])
 
         init([id: 'FirstName', sqlCol: 'firstname', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true,
-                     metaData: [grid: [width: 120], form: [allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [allowBlank: true]]])
 
         init([id: 'RealName', sqlCol: 'realname', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
-                     metaData: [grid: [width: 120], form: [allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [allowBlank: true]]])
 
         init([id: 'Organization', sqlCol: 'organization', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
-                     metaData: [grid: [width: 120], form: [allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [allowBlank: true]]])
 
         init([id: 'Email', sqlCol: 'email', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
-                     metaData: [grid: [width: 120], form: [vtype: 'email', allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [vtype: 'email', allowBlank: true]]])
 
         init([id: 'Telephone', sqlCol: 'telephone', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
-                     metaData: [grid: [width: 120], form: [allowBlank: true]]])
+                metaData: [grid: [width: 120], form: [allowBlank: true]]])
 
         // Child table columns
         init([id: 'c1_UserId', sqlCol: 'user_id', sqlType: FieldType.INTEGER, isChildResult: true, isChildEdit: true, isFilter: true])
@@ -92,25 +103,30 @@ class User_Entry extends GroovyOeDataEntrySource {
         setBaseDetailsQuery('users')
     }
 
-    private String makePwd(String user, String pwd) {
-        new OEPasswordEncoder().encodePassword(pwd, this.getCtx().getBean("salt1") + user + this.getCtx().getBean("salt2"));
+    private String makePwd(String pwd, String salt) {
+        EncryptionDetails encryptDetails = new EncryptionDetails(salt, currentAlgo)
+        new OEPasswordEncoder().encodePassword(pwd, encryptDetails)
     }
 
     @Override
     public void updateCompleteRecord(DbKeyValMap recordPks, CompleteRecord replacementRecord) {
-        String user = (String) replacementRecord.getParentRecord().getValue("UserName");
         String newpwd = (String) replacementRecord.getParentRecord().getValue("Password")
         if (!getParentRecord(recordPks).getValue("Password").equals(newpwd)) {
-            replacementRecord.getParentRecord().getValues().put("Password", makePwd(user, newpwd));
+            String salt = BCrypt.gensalt(logRounds, secureRand) //TODO make sure to change, if using different encryption
+            replacementRecord.getParentRecord().getValues().put("Salt", salt)
+            replacementRecord.getParentRecord().getValues().put("Password", makePwd(newpwd, salt));
+            replacementRecord.getParentRecord().getValues().put("Algorithm", currentAlgo)
         }
         super.updateCompleteRecord(recordPks, replacementRecord);
     }
 
     @Override
     public Map addCompleteRecord(CompleteRecord completeRecord, boolean ignoreSpecialSql) {
-        String user = (String) completeRecord.getParentRecord().getValue("UserName");
         String newpwd = (String) completeRecord.getParentRecord().getValue("Password")
-        completeRecord.getParentRecord().getValues().put("Password", makePwd(user, newpwd));
+        String salt = BCrypt.gensalt(logRounds, secureRand) //TODO make sure to change, if using different encryption
+        completeRecord.getParentRecord().getValues().put("Salt", salt)
+        completeRecord.getParentRecord().getValues().put("Password", makePwd(newpwd, salt));
+        completeRecord.getParentRecord().getValues().put("Algorithm", currentAlgo)
         return super.addCompleteRecord(completeRecord, ignoreSpecialSql);
     }
 }
