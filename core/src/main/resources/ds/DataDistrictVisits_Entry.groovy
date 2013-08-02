@@ -42,10 +42,10 @@ class DataDistrictVisits_Entry extends GroovyOeDataEntrySource {
     DataDistrictVisits_Entry() {
         DimensionBean d
 
-        setMetaData([ grid: [ sortcolumn: 'VisitId', sortorder: 'asc' ] ] as HashMap)
+        setMetaData([ grid: [ sortcolumn: 'ReportId', sortorder: 'asc' ] ] as HashMap)
 
         setTableName('district_visits')
-        addMasterTable([tableName: 'district_visits', pks: ['PatientId', 'DiagnosesId'] as HashSet])
+        addMasterTable([tableName: 'district_visits', pks: ['ReportId', 'PatientId'] as HashSet])
 
 		init([id: 'ReportId', sqlCol: 'report_id', sqlType: FieldType.INTEGER, isResult: true, isEdit: true, isFilter: true, isAutoGen: true,
                 metaData: [form: [xtype: 'hidden', allowBlank: true]]])
