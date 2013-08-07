@@ -125,6 +125,7 @@ allprojects {
             }
         }
     }
+    processResources.dependsOn cleanProcessResources
 
     task docs(type: Jar, dependsOn: javadoc) {
         classifier = "javadoc"
