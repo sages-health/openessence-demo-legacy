@@ -89,21 +89,20 @@ dependencies {
     providedCompile "javax.servlet.jsp:jsp-api:${project.versions.jsp}"
 }
 
-/**
- * Always build an exploded version too.
- *
- * Feel free to turn this on if you want it in your personal builds,
- * but it takes a long time                                         
- */
-//task explodedWar(type: Sync) {
-//	into "$buildDir/exploded"
-//	with war
-//}
-//war.dependsOn explodedWar
-
 war {
     baseName "openessence" // instead of "core"
 
     // don't put version in WAR so we don't have to rename it before deploy
     archiveName "${baseName}.war"
+}
+
+/**
+ * Always build an exploded version too.
+ *
+ * Feel free to turn this on if you want it in your personal builds,
+ * but it takes a long time
+ */
+task explodedWar(type: Sync) {
+    into "$buildDir/${war.baseName}_exploded"
+    with war
 }
