@@ -136,10 +136,8 @@ public class CheckHoliday {
             }
             hols[i] = 0;
             if (bH == true) {
-            	System.out.println(cal.getTime());
                 hols[i] = 1;
             }
-//System.out.println(i+" "+hols[i]+" "+cal.getTime()+" "+weekday);
             cal.add(Calendar.DAY_OF_MONTH, 1);
         }
         return hols;
