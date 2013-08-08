@@ -114,7 +114,7 @@ allprojects {
             }
             if (it.name == 'messages.properties') {
                 def tz = TimeZone.getTimeZone('UTC')
-                def timestamp = new java.util.Date().format("yyyy-MM-dd HH:mm z", tz)
+                def timestamp = new Date().format("yyyy-MM-dd HH:mm z", tz)
 
                 def builder = new RepositoryBuilder()
                 def repo = builder.findGitDir().build()
@@ -125,6 +125,8 @@ allprojects {
             }
         }
     }
+    // build timestamp always needs to be updated
+    processResources.outputs.upToDateWhen { false }
 
     task docs(type: Jar, dependsOn: javadoc) {
         classifier = "javadoc"
