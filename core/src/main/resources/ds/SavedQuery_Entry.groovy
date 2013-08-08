@@ -56,6 +56,8 @@ class SavedQuery_Entry extends GroovyOeDataEntrySource {
 
         init([id: 'UserId', sqlCol: 'user_id', sqlType: FieldType.INTEGER, isFilter: true, isEdit: true])
         init([id: 'DataSource', sqlCol: 'data_source', sqlType: FieldType.TEXT, isFilter: true, isEdit: true])
+        init([id: 'QueryType',  sqlCol: 'query_type',  sqlType: FieldType.TEXT,    isEdit: true, isFilter: true, isResult: true,
+                metaData: [ form: [ xtype: 'queryImage' ] ] ])
         init([id: 'Parameters', sqlCol: 'parameters', sqlType: FieldType.TEXT, isResult: true, isFilter: true, isEdit: true])
 
         // child table

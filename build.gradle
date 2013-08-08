@@ -23,6 +23,14 @@
  * INABILITY TO USE, THE MATERIAL, INCLUDING, BUT NOT LIMITED TO, ANY DAMAGES
  * FOR LOST PROFITS.
  */
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath 'org.eclipse.jgit:org.eclipse.jgit:3.0.0.201306101825-r' }
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+import org.eclipse.jgit.lib.*
+import org.apache.tools.ant.filters.EscapeUnicode
 
 // add site-specific build logic
 apply from: 'site.gradle'
@@ -68,7 +76,8 @@ allprojects {
                 junit: '4.11',
                 servlet: '2.5',
                 jsp: '2.1',
-                jstl: '1.2'
+                jstl: '1.2',
+                postgresql: '9.2-1003-jdbc4'
         ]
     }
 
@@ -88,13 +97,36 @@ allprojects {
 
     configurations {
         // globally exclude commons-logging in favor of slf4j (take that maven!)
-        all*.exclude group: 'commons-logging', module: 'commong-logging'
+        all*.exclude group: 'commons-logging', module: 'commons-logging'
     }
 
     dependencies {
         // TODO make this dependent on presence of commons-logging
         compile "org.slf4j:jcl-over-slf4j:${project.versions.slf4j}"
     }
+
+    processResources {
+        eachFile {
+            if (it.name.endsWith('.properties')) {
+                // Java demands .properties files be Latin-1 encoded,
+                // we prefer UTF-8, so escape non-ASCII chars during build
+                it.filter(EscapeUnicode)
+            }
+            if (it.name == 'messages.properties') {
+                def tz = TimeZone.getTimeZone('UTC')
+                def timestamp = new Date().format("yyyy-MM-dd HH:mm z", tz)
+
+                def builder = new RepositoryBuilder()
+                def repo = builder.findGitDir().build()
+                def head = repo.resolve(Constants.HEAD)
+                def sha = ObjectId.toString(head)[0..6]
+
+                it.filter(ReplaceTokens, tokens: [VERSION: version, SHA: sha, DATE: timestamp])
+            }
+        }
+    }
+    // build timestamp always needs to be updated
+    processResources.outputs.upToDateWhen { false }
 
     task docs(type: Jar, dependsOn: javadoc) {
         classifier = "javadoc"

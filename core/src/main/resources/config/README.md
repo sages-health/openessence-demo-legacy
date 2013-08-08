@@ -14,8 +14,6 @@ parameters in db.properties is usually preferable, it is not
 required if the DataSource is available in the Environment 
 (e.g. a Tomcat-managed JNDI DataSource).
 
-See `EnvironmentConfig.mainDataSource()` for more info.
-
 ## Example
 ```
 db.driverClass=org.postgresql.Driver
@@ -24,16 +22,27 @@ db.username=postgres
 db.password=
 ```
 
-# salt.properties
-Defines system-wide salts. For a lot of reasons, this isn't
-great security. In the future, we'd like to replace this
-with per user salts stored in the database.
+## Fields
+For more information, see `EnvironmentConfig.mainDataSource()`.
 
-## Example
-```
-salt1=aZBycXDwe
-salt2=192837465
-```
+### db.driverClass
+Fully-qualified class name of the JDBC Driver to use, e.g. `org.postgresql.Driver` or
+`com.mysql.jdbc.Driver`.
+
+### db.url
+JDBC URL of the database, e.g. `jdbc:postgresql://localhost:5432/openessence` or
+`jdbc:mysql://localhost:3306/openessence`.
+
+### db.username
+Database user for JDBC connections
+
+### db.password
+Database password
+
+### db.testConnection
+By default, OpenEssence makes a test connection to the database on startup. If it
+can't establish a connection, startup will fail with an exception. To override this
+check, set `db.testConnection=false`. This is useful to do testing without a database.
 
 # maps.properties
 Map related settings. See `MapConfig` for more info.

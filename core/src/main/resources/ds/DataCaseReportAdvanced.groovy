@@ -24,8 +24,6 @@
  * FOR LOST PROFITS.
  */
 
-
-
 import edu.jhuapl.openessence.datasource.FieldType
 import edu.jhuapl.openessence.datasource.jdbc.DimensionBean
 import edu.jhuapl.openessence.datasource.jdbc.ResolutionHandler
@@ -58,8 +56,8 @@ class DataCaseReportAdvanced extends GroovyDataSource {
                 getMapQuery: new GetMapQuery(
                         layers: ['openessence:district_geometry'],
                         format: 'image/png'
-                ),
-                )]
+                )
+        )]
         mapInfo.overlays = [new WMSLayer(
                 name: 'Total Counts',
                 dataDSName: 'DistrictDetection_Entry',
@@ -91,24 +89,26 @@ class DataCaseReportAdvanced extends GroovyDataSource {
                 strokeOpacity: '0.9'
         ]
 
-        setMetaData([form: [supportMap: true],
+        setMetaData([
+                form: [supportMap: true],
                 menuCfg: [[parent: 'report', src: 'OE.report.datasource.main', order: 1]],
                 grid: [width: 200, sortcolumn: 'Id', sortorder: 'desc'],
                 mapInfo: mapInfo
-
         ])
 
-        init([id: 'Id', sqlCol: 'distinct(dr.id) as datareport', sqlColAlias: 'datareport', sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
-                metaData: [grid: [width: 80]]])
+        init([id: 'Id', sqlCol: 'distinct(dr.id) as datareport', sqlColAlias: 'datareport', sqlType: FieldType.INTEGER,
+                isResult: true, isFilter: false, metaData: [grid: [width: 80]]])
 
-        d = init([id: 'District', sqlCol: 'district', sqlType: FieldType.TEXT, isResult: true, isFilter: true, isGrouping: true,
+        d = init([id: 'District', sqlCol: 'district', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
+                isGrouping: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect', sortcolumn: 'Order']]])
         d.possibleValuesDsName = 'Districts'
 
         init([id: 'PatientId', sqlCol: 'dr.patient_id', sqlType: FieldType.TEXT, isResult: true, isFilter: false,
                 metaData: [grid: [width: 120]]])
 
-        d = init([id: 'ReportDate', sqlCol: 'dr.report_date', sqlType: FieldType.DATE, isResult: true, isFilter: true, isGrouping: true,
+        d = init([id: 'ReportDate', sqlCol: 'dr.report_date', sqlType: FieldType.DATE, isResult: true, isFilter: true,
+                isGrouping: true,
                 metaData: [grid: [width: 100]]])
         d.resolutionHandlers = (Map<String, ResolutionHandler>) [
                 'daily': new PgSqlDailyHandler(),
@@ -116,23 +116,23 @@ class DataCaseReportAdvanced extends GroovyDataSource {
                 'monthly': new PgSqlMonthlyHandler()
         ]
 
-        d = init([id: 'ReturnVisit', sqlCol: 'dr.return_visit', sqlType: FieldType.BOOLEAN, isResult: true, isFilter: true,
+        d = init([id: 'ReturnVisit', sqlCol: 'dr.return_visit', sqlType: FieldType.BOOLEAN, isResult: true,
+                isFilter: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect'], grid: [width: 80, renderBooleanAsTernary: true]]])
         d.possibleValuesDsData = [[true, 'Yes'], [false, 'No']]
 
-        d = init([id: 'Sex', sqlCol: 'dr.sex', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true, isGrouping: true,
+        d = init([id: 'Sex', sqlCol: 'dr.sex', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true,
+                isGrouping: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect'], grid: [width: 40]]])
         d.possibleValuesDsData = [['F', 'Female'], ['M', 'Male'], ['UNK', 'Unknown']]
 
         init([id: 'Age', sqlCol: 'dr.age', sqlType: FieldType.INTEGER, isResult: true, isFilter: false,
                 metaData: [grid: [width: 80]]])
 
-        d = init([id: 'AgeGroup', sqlCol: 'ag.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect']]])
-        d.possibleValuesDsName = "AgeGroups"
-
-        init([id: 'AgeGroupName', sqlCol: 'ag.description', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'AgeGroup',
-                metaData: [grid: [width: 100]]])
+        d = init([id: 'AgeGroupName', sqlCol: 'ag.description', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
+                metaData: [grid: [width: 100], form: [width: 300, xtype: 'superboxselect', sortcolumn: 'Order']]])
+        d.possibleValuesDsName = 'AgeGroups'
+        d.possibleValuesDsResults = ['AgeGroupId', 'AgeGroup', 'Order']
 
         init([id: 'Weight', sqlCol: 'dr.weight', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
                 metaData: [grid: [width: 80]]])
@@ -149,20 +149,10 @@ class DataCaseReportAdvanced extends GroovyDataSource {
         init([id: 'Temperature', sqlCol: 'dr.temperature', sqlType: FieldType.DOUBLE, isResult: true, isFilter: false,
                 metaData: [grid: [width: 100]]])
 
-        d = init([id: 'TemperatureGroups', sqlCol: 'temp.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
-                metaData: [form: [width: 300, xtype: 'superboxselect']]])
-        d.possibleValuesDsName = "TemperatureGroups"
-
-        init([id: 'TemperatureGroupName', sqlCol: 'temp.description', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'TemperatureGroups',
-                metaData: [grid: [width: 100]]])
-
-        //The "advanced" report does not use these because grouping by symptom or diagnosis explodes one report into multiple
-        //used for grouping queries
-//        init([id: 'Symptom10Name',        sqlCol: 'sym10.name',   sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-//            metaData: [ form: [ xtype: 'hidden', width: 300 ], grid: [ width: 100 ] ] ])
-//        init([id: 'Diagnosis10Name',        sqlCol: 'd10.name',   sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-//            metaData: [ form: [ xtype: 'hidden', width: 300 ], grid: [ width: 100 ] ] ])
-//        
+        d = init([id: 'TemperatureGroupName', sqlCol: 'temp.description', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
+                metaData: [grid: [width: 100], form: [width: 300, xtype: 'superboxselect', sortcolumn: 'Order']]])
+        d.possibleValuesDsName = 'TemperatureGroups'
+        d.possibleValuesDsResults = ['TempGroupId', 'TemperatureGroup', 'Order']
 
         init([id: 'AllSymptoms', sqlCol: 'allsymptoms', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
                 metaData: [form: [xtype: 'hidden'], grid: [width: 200]]])
@@ -178,7 +168,8 @@ class DataCaseReportAdvanced extends GroovyDataSource {
         init([id: 'ModifiedDate', sqlCol: 'dr.modified_date', sqlType: FieldType.DATE, isResult: true,
                 metaData: [grid: [width: 100]]])
 
-        d = init([id: 'timeseriesDetectorClass', sqlCol: '\'<na>\'', sqlType: FieldType.TEXT, isResult: false, isFilter: true])
+        d = init([id: 'timeseriesDetectorClass', sqlCol: '\'<na>\'', sqlType: FieldType.TEXT, isResult: false,
+                isFilter: true])
         d.possibleValuesDsData = [
                 ['edu.jhuapl.bsp.detector.EarsC1', 'CDC-C1'],
                 ['edu.jhuapl.bsp.detector.EarsC2', 'CDC-C2'],
@@ -189,20 +180,24 @@ class DataCaseReportAdvanced extends GroovyDataSource {
         ]
 
         // Symptoms Filters
-        d = init([id: 'Symptom1ID', sqlCol: 'rs1.symptom_id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+        d = init([id: 'Symptom1ID', sqlCol: 'rs1.symptom_id', sqlType: FieldType.INTEGER, isResult: false,
+                isFilter: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect']]])
         d.possibleValuesDsName = 'Symptoms'
 
-        d = init([id: 'Symptom2ID', sqlCol: 'rs2.symptom_id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+        d = init([id: 'Symptom2ID', sqlCol: 'rs2.symptom_id', sqlType: FieldType.INTEGER, isResult: false,
+                isFilter: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect']]])
         d.possibleValuesDsName = 'Symptoms'
 
         // Diagnosis Filters
-        d = init([id: 'Diagnosis1ID', sqlCol: 'rd1.diagnosis_id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+        d = init([id: 'Diagnosis1ID', sqlCol: 'rd1.diagnosis_id', sqlType: FieldType.INTEGER, isResult: false,
+                isFilter: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect']]])
         d.possibleValuesDsName = 'Diagnoses'
 
-        d = init([id: 'Diagnosis2ID', sqlCol: 'rd2.diagnosis_id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+        d = init([id: 'Diagnosis2ID', sqlCol: 'rd2.diagnosis_id', sqlType: FieldType.INTEGER, isResult: false,
+                isFilter: true,
                 metaData: [form: [width: 300, xtype: 'superboxselect']]])
         d.possibleValuesDsName = 'Diagnoses'
 
@@ -211,7 +206,8 @@ class DataCaseReportAdvanced extends GroovyDataSource {
                 metaData: [form: [width: 300, xtype: 'multiselect', height: 25]]])
 
         // Accumulation result dimensions
-        init([id: 'Cases', sqlCol: 'count( distinct(dr.id) ) as count', sqlColAlias: 'count', sqlType: FieldType.INTEGER, isResult: true, isAccumulation: true,
+        init([id: 'Cases', sqlCol: 'count( distinct(dr.id) ) as count', sqlColAlias: 'count',
+                sqlType: FieldType.INTEGER, isResult: true, isAccumulation: true,
                 metaData: [grid: [hidden: false]]])
 
         init([id: 'UserId', sqlCol: 'dr.user_id', sqlType: FieldType.INTEGER, isResult: false, isFilter: false,

@@ -40,6 +40,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import javax.inject.Inject;
 import javax.sql.DataSource;
@@ -56,15 +59,13 @@ public class EnvironmentConfig {
 
     public static final String GRAPH_DIR = "/oe/config/graph.dir";
     public static final String GRAPH_RETENTION = "/oe/config/graph.retention";
-    public static final String SALT_1 = "salt1";
-    public static final String SALT_2 = "salt2";
 
     private static final Logger log = LoggerFactory.getLogger(EnvironmentConfig.class);
 
     @Inject
     private Environment environment;
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public DataSource mainDataSource() {
         // Container-managed DataSource
         DataSource ds = environment.getProperty(MAIN_DB, DataSource.class);
@@ -88,7 +89,28 @@ public class EnvironmentConfig {
         bcpds.setAcquireIncrement(5);
         bcpds.setStatementsCacheSize(100);
         bcpds.setReleaseHelperThreads(1);
+        bcpds.setConnectionTestStatement("SELECT 1");
+
+        // we compare to Boolean.FALSE to avoid NPE from unboxing if property isn't defined
+        if (environment.getProperty("db.testConnection", Boolean.class) != Boolean.FALSE) {
+            try {
+                testDataSource(bcpds);
+            } catch (SQLException e) {
+                // fail at startup if we can't connect to database, rather than at first query
+                throw new IllegalStateException("Exception connecting to database", e);
+            }
+        } else {
+            log.info("db.testConnection set to false. Skipping database connection test.");
+        }
+
         return bcpds;
+    }
+
+    private void testDataSource(BoneCPDataSource ds) throws SQLException {
+        try (Connection connection = ds.getConnection()) {
+            Statement statement = connection.createStatement();
+            statement.execute(ds.getConnectionTestStatement());
+        }
     }
 
     @Bean
@@ -115,8 +137,8 @@ public class EnvironmentConfig {
     }
 
     /**
-     * It doesn't make sense to pass around a String instead of a Path, but the graph module expects a String in a lot of
-     * places.
+     * It doesn't make sense to pass around a String instead of a Path, but the graph module expects a String in a lot
+     * of places.
      *
      * @deprecated Use {@link #graphPath()} instead
      */
@@ -142,16 +164,6 @@ public class EnvironmentConfig {
         } else {
             return retention;
         }
-    }
-
-    @Bean
-    public String salt1() {
-        return environment.getRequiredProperty(SALT_1);
-    }
-
-    @Bean
-    public String salt2() {
-        return environment.getRequiredProperty(SALT_2);
     }
 
     @Bean

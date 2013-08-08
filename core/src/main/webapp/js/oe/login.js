@@ -226,6 +226,10 @@ Ext.onReady(function () {
                     {
                         cls: 'legalText legalDisclaimerJHUAPL',
                         html: messagesBundle['legal.disclaimer.jhuapl']
+                    },
+                    {
+                        cls: 'legalText version',
+                        html: messagesBundle['legal.version'] + messagesBundle['legal.sha'] + messagesBundle['legal.timestamp']
                     }
                 ]
             }

@@ -33,6 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jfree.util.Log;
+
 import au.com.bytecode.opencsv.CSVReader;
 
 public class CSVParser {
@@ -60,21 +62,22 @@ public class CSVParser {
 					break;
 				}
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			Log.error("Could not parse CSV file.", e);
 		} finally {
 			try {
 				if (reader != null) {
 					reader.close();
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				Log.error("Could not parse CSV file.", e);
 			}
 		}
 
 		return data.toArray(new String[data.size()][]);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public Map<String, String>[] parse(File file, char delimiter, char qualifier,
 			int rowsToSkip, int numRowsToRead, String[] fields) {
 		List<Map<String, String>> records = new ArrayList<Map<String, String>>();
@@ -111,18 +114,18 @@ public class CSVParser {
 					break;
 				}
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			Log.error("Could not parse CSV file.", e);
 		} finally {
 			try {
 				if (reader != null) {
 					reader.close();
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				Log.error("Could not parse CSV file.", e);
 			}
 		}
 
-		return records.toArray(new HashMap[records.size()]);
+		return (Map<String, String>[])records.toArray(new HashMap[records.size()]);
 	}
 }

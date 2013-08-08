@@ -36,6 +36,9 @@ class Diagnoses extends GroovyDataSource {
         init([id: 'Id', sqlCol: 'id', sqlType: FieldType.INTEGER, isResult: true, isFilter: true,
                 metaData: [grid: [width: 100]]])
 
+        init([id: 'NameId', sqlCol: 'name', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
+                metaData: [grid: [hidden: true, width: 300]]])
+
         init([id: 'Name', sqlCol: 'name', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
                 metaData: [grid: [width: 300]]])
 

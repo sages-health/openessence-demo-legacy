@@ -107,8 +107,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.security.Principal;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -403,7 +401,7 @@ public class ReportController extends OeController {
                                                                 model.getTimeseriesDetectorClass(),
                                                                 model.isIncludeDetails(),
                                                                 model.isDisplayIntervalEndDate(), graphData,
-                                                                ControllerUtils.getRequestTimezone(request));
+                                                                ControllerUtils.getRequestTimezone(request), model.isGraphExpectedValues());
 
         result.putAll(timeseriesResult);
 
@@ -529,7 +527,7 @@ public class ReportController extends OeController {
                                                  final List<Dimension> timeseriesDenominators,
                                                  String detectorClass, boolean includeDetails,
                                                  boolean displayIntervalEndDate, GraphDataInterface graphData,
-                                                 TimeZone clientTimezone) {
+                                                 TimeZone clientTimezone, boolean graphExpected) {
 
         Map<String, Object> result = new HashMap<String, Object>();
         Map<String, ResolutionHandler> resolutionHandlers = null;
@@ -629,7 +627,7 @@ public class ReportController extends OeController {
                 double[][] allLevels = new double[accumulations.size()][];
                 String[][] allLineSetURLs = new String[accumulations.size()][];
                 String[][] allSwitchInfo = new String[accumulations.size()][];
-                String[] lineSetLabels = new String[accumulations.size()];
+                String[] lineSetLabels = new String[accumulations.size() + 1];
                 boolean[] displayAlerts = new boolean[accumulations.size()];
 
                 //get all results
@@ -683,7 +681,8 @@ public class ReportController extends OeController {
                     try {
                         TDI.runDetector(TDDO);
                     } catch (Exception e) {
-                        String errorMessage = "Failure to create Timeseries";
+                        log.error("", e);
+                        String errorMessage = "Failure to create timeseries";
                         if (e.getMessage() != null) {
                             errorMessage = errorMessage + ":<BR>" + e.getMessage();
                         }
@@ -824,6 +823,8 @@ public class ReportController extends OeController {
                     dimIds.remove(accumId);
                 }
 
+                lineSetLabels[aIndex] = "Expected Values";
+
                 GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
                 GraphController gc = getGraphController(null, hndl, userPrincipalName);
                 //TODO figure out why I (hodancj1) added this to be accumulation size ~Feb 2012
@@ -849,7 +850,7 @@ public class ReportController extends OeController {
                 graphData.setMaxLabeledCategoryTicks(Math.min(maxLabels, allCounts[0].length));
 
                 StringBuffer sb = new StringBuffer();
-                GraphObject graph = gc.writeTimeSeriesGraph(sb, graphData, true, true, false, graphTimeSeriesUrl);
+                GraphObject graph = gc.writeTimeSeriesGraph(sb, graphData, true, true, false, graphTimeSeriesUrl, graphExpected);
 
                 result.put("html", sb.toString());
 
@@ -1251,7 +1252,8 @@ public class ReportController extends OeController {
                                 @RequestParam(required = false) String getImageMap,
                                 @RequestParam(required = false) String imageType,
                                 @RequestParam(required = false) String resolution,
-                                @RequestParam(required = false) String getHighResFile)
+                                @RequestParam(required = false) String getHighResFile,
+                                @RequestParam(required = false) boolean graphExpectedValues)
             throws GraphException, IOException {
 
         GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
@@ -1269,7 +1271,7 @@ public class ReportController extends OeController {
             data.setYAxisLabel(yAxisLabel);
         }
 
-        GraphObject graph = gc.createTimeSeriesGraph(data, yAxisMin, yAxisMax, dataDisplayKey);
+        GraphObject graph = gc.createTimeSeriesGraph(data, yAxisMin, yAxisMax, dataDisplayKey, graphExpectedValues);
         BufferedOutputStream out = new BufferedOutputStream(resp.getOutputStream());
 
         if (getImageMap != null && (getImageMap.equals("1") || getImageMap.equalsIgnoreCase("true"))) {
@@ -1889,7 +1891,7 @@ public class ReportController extends OeController {
     }
 
     /**
-     * Used to convert the given dimension value into a safe URL-encoded value.
+     * Used to convert the given dimension value into a Javascript-safe function call value.
      *
      * <p> In the event that the object is a <code>java.util.Date</code>, the numeric will be returned.
      *
@@ -1897,17 +1899,28 @@ public class ReportController extends OeController {
      *
      * @param value The dimension value to be converted.
      * @return The safe string representation of the given value.
-     * @throws RuntimeException An UnsupportedEncodingException will be re-thrown if unable to encode the value as a
-     *                          UTF-8 string.
      */
     private static String convertFilter(final Object value) {
-        try {
-            return value == null ? "" :
-                   (value instanceof Date
-                    ? String.valueOf(((Date) value).getTime())
-                    : URLEncoder.encode(String.valueOf(value), "UTF-8").replaceAll("\\+", "%20"));
-        } catch (final UnsupportedEncodingException uee) {
-            throw new RuntimeException("Unable To Encode Filter: " + value, uee);
+        // http://en.wikipedia.org/wiki/Percent-encoding
+        //     All Reserved Chars:    ! # $ & ' ( ) * + , / : ; = ? @ [ ]
+        //     Others Handled:        % < > ` ~ ^ | { } . - " \ _
+
+        // If a literal _ or % (the single char and variable char wild card symbols in PostgreSQL)
+        // are desired in the filter criteria, then they need to be backslash escaped by the user.
+
+        // Yes, some need lots of backslashes due to various levels of decoding between PostgreSQL, Java, Javascript
+
+        if (value == null) {
+            return "";
+        } else if (value instanceof Date) {
+            return String.valueOf(((Date) value).getTime());
+        } else {
+            return String.valueOf(value)
+                    .replaceAll("%", "%25") // To fix query filters: %fever%
+                    .replaceAll("\\\\", "\\\\\\\\") // To fix chart groupings: This is a sad face :\
+                    .replaceAll("'", "\\\\'") // To fix chart groupings: Prince George's
+                    .replaceAll("\"", "&quot;") // To fix chart groupings: Bob said "his quote".
+                    .replaceAll(" ", "%20");
         }
     }
 }

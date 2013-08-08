@@ -46,6 +46,7 @@ OE.SavedQueryPanel = Ext.extend(Ext.Panel, {
             title: messagesBundle[OE.SAVED_QUERY_DS + '.grid'] || config.title || 'Saved Queries',
             cls: 'reportPanel',
             layout: 'fit',
+            split: true,
             plugins: new Ext.ux.collapsedPanelTitlePlugin(),
             collapsible: true,
             cmargins: '0 0 6 0',
@@ -80,6 +81,7 @@ OE.SavedQueryPanel = Ext.extend(Ext.Panel, {
 
                 columnsAndFields.columns[0].width = 80; // make ID column smaller
                 columnsAndFields.columns[1].width = 200; // make QueryName column bigger
+                columnsAndFields.columns[2].width = 80; // make QueryType column smaller
 
                 var dataStore = new OE.data.RestrictedJsonStore({
                     url: config.url || '../../oe/report/detailsQuery',

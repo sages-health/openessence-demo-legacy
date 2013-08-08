@@ -38,6 +38,8 @@ class User extends GroovyDataSource {
         init([id: 'Id', sqlCol: 'id', sqlType: FieldType.INTEGER, isResult: true, isFilter: true])
         init([id: 'UserName', sqlCol: 'name', sqlType: FieldType.TEXT, isResult: true, isFilter: true])
         init([id: 'Password', sqlCol: 'password', sqlType: FieldType.TEXT, isResult: true])
+        init([id: 'Salt', sqlCol: 'salt', sqlType: FieldType.TEXT, isResult: true, isFilter: false])
+        init([id: 'Algorithm', sqlCol: 'algorithm', sqlType: FieldType.TEXT, isResult: true, isFilter: false])
         init([id: 'Enabled', sqlCol: 'enabled', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
         init([id: 'NonExpired', sqlCol: 'non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
         init([id: 'CredentialsNonExpired', sqlCol: 'credentials_non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
