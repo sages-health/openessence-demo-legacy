@@ -37,6 +37,10 @@ import org.jfree.util.Log;
 
 import au.com.bytecode.opencsv.CSVReader;
 
+/**
+ * This class provides methods that will read a CSV file and 
+ * return results as an array.
+ */
 public class CSVParser {
 
 	public String[][] parse(File file, char delimiter, char qualifier,
@@ -96,11 +100,14 @@ public class CSVParser {
 					// Consider all cells in this row are empty
 					boolean emptyRow = true;
 					for(String field : fields){
-						// if no cell has value so far, then check if current cell has value or not
-						if(emptyRow && nextLine[ix] != null && nextLine[ix].length() > 0){
-							emptyRow = false;
+						// if this row does not have enough fields
+						if(nextLine.length > ix){
+							// if no cell has value so far, then check if current cell has value or not
+							if(emptyRow && nextLine[ix] != null && nextLine[ix].length() > 0){
+								emptyRow = false;
+							}
+							recordMap.put(field, nextLine[ix]);
 						}
-						recordMap.put(field, nextLine[ix]);
 						ix++;
 					}
 					// if atleast one cell in this row is populated
@@ -116,7 +123,9 @@ public class CSVParser {
 			}
 		} catch (IOException e) {
 			Log.error("Could not parse CSV file.", e);
-		} finally {
+		} catch (ArrayIndexOutOfBoundsException e) {
+			Log.error("Could not parse CSV file.", e);
+		}finally {
 			try {
 				if (reader != null) {
 					reader.close();

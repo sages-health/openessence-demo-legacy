@@ -265,8 +265,7 @@ OE.EditorGridField = Ext.extend(Ext.grid.EditorGridPanel, {
 				//Enable/Disable error button
 				if(Ext.getCmp(gridHiddenFld).isValid()){
 					grid.getBottomToolbar().get(0).disable(true);
-				}
-				else {
+				} else {
 					grid.getBottomToolbar().get(0).enable(true);
 				}
 			}
@@ -410,8 +409,7 @@ OE.EditorGridField = Ext.extend(Ext.grid.EditorGridPanel, {
 			var itemIx = editorStore.findExact(editorStore.displayField, value); // use displayField
 			if(itemIx >= 0){
 				newRec[field] =  editorStore.getAt(itemIx).data[editorStore.valueField]; // use id field
-			}
-			else {
+			} else {
 				// TODO: If the lookup value not found...
 				newRec[field] = '';
 			}
@@ -422,34 +420,28 @@ OE.EditorGridField = Ext.extend(Ext.grid.EditorGridPanel, {
 		// date string/int to JavaScript Date object 
 		function convertDisplayValuesToIds(grid, rec){
 			var newRec = rec;
-			
-			for (var prop in rec) {
-			    if (rec.hasOwnProperty(prop)) {
-			    	var field = prop;
-			        var value = rec[prop];
-			        var column = grid.getColumnModel().getColumnById(field);
-			       	if ( column.xtype == 'combocolumn'){
-			       		var editorStore = column.getEditor().getStore();
-						if (editorStore.getCount() == 0) {
-							  editorStore.on('load',
-									  convertFromStore.createDelegate(this, [newRec, field, value, editorStore]), null, {single: true});
-					            return;
-					    }
-						else {
-							  convertFromStore(newRec, field , value, editorStore);
-						}
-					} else if (column.editor && column.editor.getXType() == 'datefield'){
-						var timestamp=Date.parse(rec[field]);
-						if (isNaN(timestamp)==false){
-							newRec[field] = new Date(rec[field]);
-						}
-						else {
-							newRec[field] = '';
-						}				
+			Ext.iterate(rec, function(prop, v) {
+				var field = prop;
+		        var value = rec[prop];
+		        var column = grid.getColumnModel().getColumnById(field);
+		       	if ( column.xtype == 'combocolumn'){
+		       		var editorStore = column.getEditor().getStore();
+					if (editorStore.getCount() == 0) {
+						  editorStore.on('load',
+								  convertFromStore.createDelegate(this, [newRec, field, value, editorStore]), null, {single: true});
+				            return;
+				    } else {
+						  convertFromStore(newRec, field , value, editorStore);
 					}
-			    }
-			}
-			
+				} else if (column.editor && column.editor.getXType() == 'datefield'){
+					var timestamp=Date.parse(rec[field]);
+					if (isNaN(timestamp)==false){
+						newRec[field] = new Date(rec[field]);
+					} else {
+						newRec[field] = '';
+					}				
+				}
+			});
 			return newRec;
 		}
 		
@@ -536,8 +528,7 @@ OE.EditorGridField = Ext.extend(Ext.grid.EditorGridPanel, {
 				} else {
 					res = value;
 				}
-			}
-			else if (value) {
+			} else if (value) {
 				switch (dataType) {
 				case 'date':
 					// Change dates to millis
