@@ -532,7 +532,7 @@ OE.EditorGridField = Ext.extend(Ext.grid.EditorGridPanel, {
 				switch (dataType) {
 				case 'date':
 					// Change dates to millis
-					if (value == undefined || value == null || value == '') {
+					if (value != undefined && value != null && value != '') {
 						res = value.getTime();
 					}
 					break;
