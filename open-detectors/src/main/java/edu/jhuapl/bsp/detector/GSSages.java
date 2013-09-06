@@ -26,15 +26,6 @@
 
 package edu.jhuapl.bsp.detector;
 
-import edu.jhuapl.bsp.detector.exception.DetectorException;
-
-import org.apache.commons.math3.distribution.TDistribution;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Date;
-import java.util.Properties;
-
 import static edu.jhuapl.bsp.detector.OpenMath.any;
 import static edu.jhuapl.bsp.detector.OpenMath.arrayAbs;
 import static edu.jhuapl.bsp.detector.OpenMath.arrayAdd;
@@ -59,6 +50,19 @@ import static java.lang.Math.abs;
 import static java.lang.Math.log;
 import static java.lang.Math.max;
 import static java.lang.Math.pow;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Date;
+import java.util.Properties;
+
+import org.apache.commons.math3.distribution.TDistribution;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import de.jollyday.HolidayManager;
+import edu.jhuapl.bsp.detector.exception.DetectorException;
 
 /**
  * Runs the Generalized Adaptive Smoothing algorithm
@@ -85,13 +89,27 @@ public class GSSages implements TemporalDetectorInterface, TemporalDetector {
     private double threshPValueR, threshPValueY;
     private double levels[], pvalues[], expectedData[], colors[], r2Levels[], switchFlags[], test_stat[];
 
-    //
+    private static final Logger log = LoggerFactory.getLogger(GSSages.class);
+    private HolidayManager holidayManager;
+    
     public GSSages() {
-        init();
+		try {
+			URL holidaysFile = getClass().getResource("/Holidays_OE.xml");
+			this.holidayManager = HolidayManager.getInstance(holidaysFile);
+		} catch (NullPointerException e) {
+			log.error("Could not instantiate HolidayManager. Could not locate "
+					+ "Holidays_OE.xml file.", e);
+		}
+    	init();
     }
 
+    public GSSages(HolidayManager holidayManager) {
+    	this.holidayManager = holidayManager;
+    	init();
+    }
+    
     private void init() {
-        threshPValueR = THRESHOLD_PROBABILITY_RED_ALERT;
+	    threshPValueR = THRESHOLD_PROBABILITY_RED_ALERT;
         threshPValueY = THRESHOLD_PROBABILITY_YELLOW_ALERT;
         bAutoCoef = true;
         Baseline = BASELINE;
@@ -209,7 +227,7 @@ public class GSSages implements TemporalDetectorInterface, TemporalDetector {
             }
             bSparseFlag = false;
         }
-        int HOL[] = CheckHoliday.isHoliday(startDate, data.length); // Holiday function
+        int HOL[] = CheckHoliday.getHolidays(startDate, data.length, holidayManager); // Holiday function
         // Format of the parameterList:
         // HOL - vector of holidays
         final int season = 7; // Seasonality
