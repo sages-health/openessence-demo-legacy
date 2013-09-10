@@ -29,6 +29,7 @@ package edu.jhuapl.openessence.controller;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -43,8 +44,11 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.jfree.util.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -223,12 +227,12 @@ public class InputController extends OeController {
         return data; // TODO return RESTful response, i.e. data actually deleted
     }
 
-    @RequestMapping(value = "/importExcel")
+    @RequestMapping(value = "/importExcel")// , consumes = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public void importExcel(@RequestPart MultipartFile file, @RequestParam("dsId") JdbcOeDataSource ds,
-                            HttpServletRequest request, HttpServletResponse response)
+                            HttpServletResponse response)
             throws IOException, ServletException {
 
-        ObjectMapper mapper = new ObjectMapper();
+    	ObjectMapper mapper = new ObjectMapper();
         try {
             // Ext needs this for the crazy way it does file uploads
             // it's normally bad to manually write JSON, but dealing with a custom Spring MessageConverter seems like overkill
@@ -244,55 +248,30 @@ public class InputController extends OeController {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.getWriter().write(mapper.writeValueAsString(handleException(e)));
         }
-
     }
     
-
-    @RequestMapping(value = "/importCSV")
+    @RequestMapping(value = "/importCSV")//, consumes = "application/vnd.ms-excel")
     public void importCSV(@RequestPart MultipartFile file, 
-    		HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException  {
+    		@RequestParam(value = "delimiter", defaultValue = ",") char delimiter,
+    		@RequestParam(value = "qualifier", defaultValue = "\"") char qualifier, 
+    		@RequestParam(value = "rowsToSkip", defaultValue = "0") int rowsToSkip,
+    		@RequestParam(value = "numRowsToRead", defaultValue = "-1") int numRowsToRead,
+    		@RequestParam("fields") String fields, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException  {
  
-    	parseCSVData(file, request, response);
+    	System.out.println(request.getHeader("Content-Type"));
+    	parseCSVData(file, response, delimiter, qualifier, rowsToSkip, numRowsToRead, fields);
     }
     
-    private void parseCSVData(MultipartFile csvFile,
-			HttpServletRequest request, HttpServletResponse response)
+    private void parseCSVData(MultipartFile csvFile, HttpServletResponse response, 
+    		char delimiter, char qualifier, int rowsToSkip, int numRowsToRead, String flds)
 			throws IOException, ServletException {
 		ObjectMapper mapper = new ObjectMapper();
 
-		String user = request.getUserPrincipal().getName();
-		Calendar cal = Calendar.getInstance();
-		String dateTimeString = cal.get(Calendar.YEAR) + "_"
-				+ (cal.get(Calendar.MONTH) + 1) + "_" + cal.get(Calendar.DATE)
-				+ "_" + cal.get(Calendar.HOUR_OF_DAY) + "_"
-				+ cal.get(Calendar.MINUTE) + "_" + cal.get(Calendar.SECOND);
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+	    String user = auth.getName();
 
-		char delimiter = ',';
-		char qualifier = '"';
-		int rowsToSkip = 0;
-		int numRowsToRead = -1;
-		if (request.getParameter("delimiter") != null
-				&& request.getParameter("delimiter").length() > 0) {
-			delimiter = request.getParameter("delimiter").charAt(0);
-		}
-		if (request.getParameter("qualifier") != null
-				&& request.getParameter("qualifier").length() > 0) {
-			qualifier = request.getParameter("qualifier").charAt(0);
-		}
-		if (request.getParameter("rowsToSkip") != null
-				&& request.getParameter("rowsToSkip").length() > 0 ) {
-			try {
-				rowsToSkip = Integer.parseInt(request
-						.getParameter("rowsToSkip"));
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		if (request.getParameter("numRowsToRead") != null
-				&& request.getParameter("numRowsToRead").length() > 0) {
-			numRowsToRead = Integer.parseInt(request
-					.getParameter("numRowsToRead"));
-		}
+		Calendar cal = Calendar.getInstance();
+		String dateTimeString = (new SimpleDateFormat("yyyyy_mm_dd_hh_mm_ss")).format(cal.getTime()); 
 
 		Map<String, Object> map = new HashMap<String, Object>();
 		response.setContentType("text/html;charset=utf-8");
@@ -301,46 +280,37 @@ public class InputController extends OeController {
 		response.setHeader("Expires", "-1");
 
 		File upDir = uploadDir();
-		try {
-			File upFile = null;
-			if (csvFile == null) {
-				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-				response.getWriter()
-						.write(mapper
-								.writeValueAsString(handleException(new RuntimeException(
-										"Error: File not uploaded!"))));
-				return;
-			}
-			upFile = new File(upDir, csvFile.getName() + "_" + user + "_"
-					+ dateTimeString + ".csv");
-			csvFile.transferTo(upFile);
-			
-			if (!upFile.isFile()) {
-				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-				response.getWriter()
-						.write(mapper
-								.writeValueAsString(handleException(new RuntimeException(
-										"Error: File is not valid!"))));
-				return;
-			}
-
-			CSVParser parser = new CSVParser();
-
-			String flds =request.getParameter("fields");
-			String [] fields = flds.split(",");
-			// parse first N lines if N not provided then parse everything...
-			Map<String, String>[] data = parser.parse(upFile, delimiter, qualifier,
-					rowsToSkip, numRowsToRead, fields);
-			map.put("rows", data);
-			map.put("success", true);
-			response.getWriter().write(mapper.writeValueAsString(map));
-
-		} catch (Exception e) {
-			e.printStackTrace();
+		File upFile = null;
+		if (csvFile == null) {
 			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			response.getWriter().write(
-					mapper.writeValueAsString(handleException(e)));
+			response.getWriter()
+					.write(mapper
+							.writeValueAsString(handleException(new RuntimeException(
+									"Error: File not uploaded!"))));
+			return;
 		}
+		upFile = new File(upDir, csvFile.getName() + "_" + user + "_"
+				+ dateTimeString + ".csv");
+		csvFile.transferTo(upFile);
+		
+		if (!upFile.isFile()) {
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			response.getWriter()
+					.write(mapper
+							.writeValueAsString(handleException(new RuntimeException(
+									"Error: File is not valid!"))));
+			return;
+		}
+
+		CSVParser parser = new CSVParser();
+
+		String [] fields = flds.split(",");
+		// parse first N lines if N not provided then parse everything...
+		Map<String, String>[] data = parser.parse(upFile, delimiter, qualifier,
+				rowsToSkip, numRowsToRead, fields);
+		map.put("rows", data);
+		map.put("success", true);
+		response.getWriter().write(mapper.writeValueAsString(map));
 	}
 
 	private File uploadDir() {
