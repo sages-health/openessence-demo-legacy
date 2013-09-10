@@ -26,34 +26,12 @@
 
 package edu.jhuapl.openessence.controller;
 
-import edu.jhuapl.openessence.datasource.Dimension;
-import edu.jhuapl.openessence.datasource.OeDataSourceAccessException;
-import edu.jhuapl.openessence.datasource.entry.ChildRecordSet;
-import edu.jhuapl.openessence.datasource.entry.CompleteRecord;
-import edu.jhuapl.openessence.datasource.entry.DbKeyValMap;
-import edu.jhuapl.openessence.datasource.jdbc.JdbcOeDataSource;
-import edu.jhuapl.openessence.datasource.jdbc.entry.JdbcOeDataEntrySource;
-import edu.jhuapl.openessence.datasource.jdbc.entry.TableAwareQueryRecord;
-import edu.jhuapl.openessence.model.DeleteRequest;
-import edu.jhuapl.openessence.upload.FileImporter;
-import edu.jhuapl.openessence.upload.FileImporterRegistry;
-import edu.jhuapl.openessence.web.util.ControllerUtils;
-import edu.jhuapl.openessence.web.util.ErrorMessageException;
-
-import org.codehaus.jackson.map.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.multipart.MultipartFile;
-
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +41,37 @@ import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.io.FileUtils;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.jfree.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartFile;
+
+import edu.jhuapl.openessence.datasource.Dimension;
+import edu.jhuapl.openessence.datasource.OeDataSourceAccessException;
+import edu.jhuapl.openessence.datasource.entry.ChildRecordSet;
+import edu.jhuapl.openessence.datasource.entry.CompleteRecord;
+import edu.jhuapl.openessence.datasource.entry.DbKeyValMap;
+import edu.jhuapl.openessence.datasource.jdbc.JdbcOeDataSource;
+import edu.jhuapl.openessence.datasource.jdbc.entry.JdbcOeDataEntrySource;
+import edu.jhuapl.openessence.datasource.jdbc.entry.TableAwareQueryRecord;
+import edu.jhuapl.openessence.model.DeleteRequest;
+import edu.jhuapl.openessence.parser.CSVParser;
+import edu.jhuapl.openessence.upload.FileImporter;
+import edu.jhuapl.openessence.upload.FileImporterRegistry;
+import edu.jhuapl.openessence.web.util.ControllerUtils;
+import edu.jhuapl.openessence.web.util.ErrorMessageException;
 
 @Controller
 @RequestMapping("/input")
@@ -218,12 +227,12 @@ public class InputController extends OeController {
         return data; // TODO return RESTful response, i.e. data actually deleted
     }
 
-    @RequestMapping(value = "/importExcel")
+    @RequestMapping(value = "/importExcel")// , consumes = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public void importExcel(@RequestPart MultipartFile file, @RequestParam("dsId") JdbcOeDataSource ds,
-                            HttpServletRequest request, HttpServletResponse response)
+                            HttpServletResponse response)
             throws IOException, ServletException {
 
-        ObjectMapper mapper = new ObjectMapper();
+    	ObjectMapper mapper = new ObjectMapper();
         try {
             // Ext needs this for the crazy way it does file uploads
             // it's normally bad to manually write JSON, but dealing with a custom Spring MessageConverter seems like overkill
@@ -239,6 +248,78 @@ public class InputController extends OeController {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.getWriter().write(mapper.writeValueAsString(handleException(e)));
         }
-
     }
+    
+    @RequestMapping(value = "/importCSV")//, consumes = "application/vnd.ms-excel")
+    public void importCSV(@RequestPart MultipartFile file, 
+    		@RequestParam(value = "delimiter", defaultValue = ",") char delimiter,
+    		@RequestParam(value = "qualifier", defaultValue = "\"") char qualifier, 
+    		@RequestParam(value = "rowsToSkip", defaultValue = "0") int rowsToSkip,
+    		@RequestParam(value = "numRowsToRead", defaultValue = "-1") int numRowsToRead,
+    		@RequestParam("fields") String fields, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException  {
+ 
+    	System.out.println(request.getHeader("Content-Type"));
+    	parseCSVData(file, response, delimiter, qualifier, rowsToSkip, numRowsToRead, fields);
+    }
+    
+    private void parseCSVData(MultipartFile csvFile, HttpServletResponse response, 
+    		char delimiter, char qualifier, int rowsToSkip, int numRowsToRead, String flds)
+			throws IOException, ServletException {
+		ObjectMapper mapper = new ObjectMapper();
+
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+	    String user = auth.getName();
+
+		Calendar cal = Calendar.getInstance();
+		String dateTimeString = (new SimpleDateFormat("yyyyy_mm_dd_hh_mm_ss")).format(cal.getTime()); 
+
+		Map<String, Object> map = new HashMap<String, Object>();
+		response.setContentType("text/html;charset=utf-8");
+		response.setHeader("Cache-control", "no-cache, no-store");
+		response.setHeader("Pragma", "no-cache");
+		response.setHeader("Expires", "-1");
+
+		File upDir = uploadDir();
+		File upFile = null;
+		if (csvFile == null) {
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			response.getWriter()
+					.write(mapper
+							.writeValueAsString(handleException(new RuntimeException(
+									"Error: File not uploaded!"))));
+			return;
+		}
+		upFile = new File(upDir, csvFile.getName() + "_" + user + "_"
+				+ dateTimeString + ".csv");
+		csvFile.transferTo(upFile);
+		
+		if (!upFile.isFile()) {
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			response.getWriter()
+					.write(mapper
+							.writeValueAsString(handleException(new RuntimeException(
+									"Error: File is not valid!"))));
+			return;
+		}
+
+		CSVParser parser = new CSVParser();
+
+		String [] fields = flds.split(",");
+		// parse first N lines if N not provided then parse everything...
+		Map<String, String>[] data = parser.parse(upFile, delimiter, qualifier,
+				rowsToSkip, numRowsToRead, fields);
+		map.put("rows", data);
+		map.put("success", true);
+		response.getWriter().write(mapper.writeValueAsString(map));
+	}
+
+	private File uploadDir() {
+		String uploadDir = Paths.get(FileUtils.getTempDirectoryPath(), "upload").toString();//jndiConfig.configDir() + "/upload";
+		File uploadDirObj = new File(uploadDir);
+		if (!uploadDirObj.exists()) {
+			System.out.println("creating directory: " + uploadDirObj);
+			uploadDirObj.mkdir();
+		}
+		return uploadDirObj;
+	}
 }

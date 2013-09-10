@@ -106,6 +106,7 @@
         src="${contextPath}/js/extplugins/Ext.ux.form.FileUploadField/FileUploadField.js"></script>
 <script type="text/javascript" src="${contextPath}/js/extplugins/PagingStore.js"></script>
 <script type="text/javascript" src="${contextPath}/js/extplugins/Ext.ux.ColorField/Ext.ux.ColorField.js"></script>
+<script type="text/javascript" src="${contextPath}/js/extplugins/CheckColumn.js"></script>
 
 <script type="text/javascript" src="${contextPath}/js/oe/app/plugin/collapsedPanelTitle.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/DynamicPagingToolbar.js"></script>
@@ -123,6 +124,7 @@
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/ComboColumn.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/GraphConfigTreePanel.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/CategoryGridField.js"></script>
+<script type="text/javascript" src="${contextPath}/js/oe/app/widget/UploadCSVForm.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/EditorGridField.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/MainTabPanel.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/InputTab.js"></script>
