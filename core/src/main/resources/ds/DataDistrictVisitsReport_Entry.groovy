@@ -71,7 +71,6 @@ class DataDistrictVisitsReport_Entry extends GroovyOeDataEntrySource {
                 isFilter: true,
                 metaData: [form: [allowBlank: false]]])
 
-
         init([id: 'Notes', sqlCol: 'notes', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true,
                 metaData: [form: [xtype: 'textarea', height: 62, width: 200, allowBlank: true]]])
 
