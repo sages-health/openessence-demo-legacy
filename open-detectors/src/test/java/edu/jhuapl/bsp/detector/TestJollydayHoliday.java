@@ -26,26 +26,34 @@
 
 package edu.jhuapl.bsp.detector;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.util.Calendar;
 
 import junit.framework.TestCase;
 import de.jollyday.HolidayManager;
+
 
 public class TestJollydayHoliday extends TestCase {
 
 	private HolidayManager hm;
 
 	@Override
+	@Before
 	protected void setUp() throws Exception {
 		// String currentDir = new java.io.File( "." ).getCanonicalPath();
-		hm = HolidayManager.getInstance(getClass().getResource("/Holidays_JUNIT1.xml"));
+		hm = HolidayManager.getInstance(getClass().getResource("/Holidays_1.xml"));
 	}
 
 	@Override
+	@After
 	protected void tearDown() throws Exception {
 		hm = null;
 	}
 
+	@Test
 	public void testCheckHoliday() {
 		Calendar now = Calendar.getInstance();
 		Calendar cal = (Calendar) now.clone();

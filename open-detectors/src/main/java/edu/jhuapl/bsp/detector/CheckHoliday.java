@@ -34,9 +34,9 @@ import de.jollyday.HolidayManager;
 public class CheckHoliday {
 
 	/**
-	 * This function returns an array having length same as numberOfDays and each
-	 * element of the array having values 0 or 1. If the corresponding day is a
-	 * holiday, it will have value 1 else value 0
+	 * This function returns an array having length same as numberOfDays and
+	 * each element of the array having values 0 or 1. If the corresponding day
+	 * is a holiday, it will have value 1 else value 0
 	 * 
 	 * @param startDate
 	 *            Start date
@@ -47,19 +47,20 @@ public class CheckHoliday {
 	 *            system
 	 * @return array of 0 or 1 for a given date range
 	 */
-	public static int[] getHolidays(Date startDate, int numberOfDays, HolidayManager holidayManager) {
+	public static int[] getHolidays(Date startDate, int numberOfDays,
+			HolidayManager holidayManager) {
 		int holidays[] = new int[numberOfDays];
 		Calendar cal = Calendar.getInstance();
-        cal.setFirstDayOfWeek(Calendar.SUNDAY);
-        cal.setTime(startDate);
-        for (int i = 0; i < numberOfDays; i++) {
-        	// if holiday manager defined 
-        	if(holidayManager != null){
-        		holidays[i] = holidayManager.isHoliday(cal) ? 1 : 0;
-        	}
+		cal.setFirstDayOfWeek(Calendar.SUNDAY);
+		cal.setTime(startDate);
+		for (int i = 0; i < numberOfDays; i++) {
+			// if holiday manager defined
+			if (holidayManager != null) {
+				holidays[i] = holidayManager.isHoliday(cal) ? 1 : 0;
+			}
 			cal.add(Calendar.DAY_OF_MONTH, 1);
-        }
-        return holidays;
+		}
+		return holidays;
 	}
 	
     private static int getNQ(int n, int q, int year, int month, Calendar cal) {
@@ -136,10 +137,8 @@ public class CheckHoliday {
             }
             hols[i] = 0;
             if (bH == true) {
-            	System.out.println(cal.getTime());
                 hols[i] = 1;
             }
-//System.out.println(i+" "+hols[i]+" "+cal.getTime()+" "+weekday);
             cal.add(Calendar.DAY_OF_MONTH, 1);
         }
         return hols;

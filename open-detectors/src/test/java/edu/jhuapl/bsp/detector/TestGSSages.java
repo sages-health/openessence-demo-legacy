@@ -26,11 +26,16 @@
 
 package edu.jhuapl.bsp.detector;
 
+import de.jollyday.HolidayManager;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.util.Calendar;
 import java.util.Date;
 
 import junit.framework.TestCase;
-import de.jollyday.HolidayManager;
 
 public class TestGSSages extends TestCase {
 
@@ -449,18 +454,20 @@ public class TestGSSages extends TestCase {
 
     //
     @Override
+    @Before
     protected void setUp() throws Exception {
-    	HolidayManager holidayManager = HolidayManager.getInstance(getClass().getResource("/Holidays_JUNIT2.xml"));
+    	HolidayManager holidayManager = HolidayManager.getInstance(getClass().getResource("/Holidays_2.xml"));
     	detector = new GSSages(holidayManager);
     }
 
     //
     @Override
+    @After
     protected void tearDown() throws Exception {
         detector = null;
     }
 
-    //
+    @Test
     public void testGSSages() {
         double data[], dataReal[];
         TemporalDetectorDataInterface tddo = new TemporalDetectorSimpleDataObject();

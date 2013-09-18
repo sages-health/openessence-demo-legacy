@@ -26,11 +26,16 @@
 
 package edu.jhuapl.bsp.detector;
 
+import de.jollyday.HolidayManager;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.util.Calendar;
 import java.util.Date;
 
 import junit.framework.TestCase;
-import de.jollyday.HolidayManager;
 
 public class TestCheckHoliday extends TestCase {
 
@@ -127,15 +132,18 @@ public class TestCheckHoliday extends TestCase {
     private CheckHoliday cd;
 
     @Override
+    @Before
     protected void setUp() throws Exception {
         cd = new CheckHoliday();
     }
 
     @Override
+    @After
     protected void tearDown() throws Exception {
         cd = null;
     }
 
+    @Test
     public void testCheckHoliday() throws Exception {
         Calendar now = Calendar.getInstance();
         Calendar cal = (Calendar) now.clone();
@@ -165,7 +173,7 @@ public class TestCheckHoliday extends TestCase {
             assertEquals(dataReal[i], flags[i], .00001);
         }
         
-        HolidayManager holidayManager = HolidayManager.getInstance(getClass().getResource("/Holidays_JUNIT2.xml"));
+        HolidayManager holidayManager = HolidayManager.getInstance(getClass().getResource("/Holidays_2.xml"));
     	
         System.out.println("Testing CheckHoliday (Jollyday version)");
         dataReal = v1;
