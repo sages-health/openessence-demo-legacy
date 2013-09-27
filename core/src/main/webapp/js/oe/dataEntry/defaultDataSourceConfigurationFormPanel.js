@@ -71,6 +71,8 @@ OE.input.datasource.form.init = function (configuration) {
         // Generic dimension configuration items
         field.name = dimension.name;
         field.fieldLabel = OE.util.getDimensionName(configuration.dataSource, dimension.name);
+        field.dimension = dimension;
+        field.dimensionMetadata = dimensionMetadata;
 
         // Setting qtip, if it exists (moved for grids)
         var dimensionNameQtip = dimension.name + '.qtip';
@@ -119,6 +121,7 @@ OE.input.datasource.form.init = function (configuration) {
             field.xtype = dimensionMetadata.xtype;
         } else if (dimensionMetadata.xtype === 'editorgridfield') {
             field.xtype = dimensionMetadata.xtype;
+            field.dataSource = configuration.dataSource; // FIXME why isn't this set for all fields?
             field.dimension = dimension;
             field.dimensionMetadata = dimensionMetadata;
             field.width = OE.util.getNumberValue(dimensionMetadata.width, 600);
@@ -504,7 +507,7 @@ OE.input.datasource.form.init = function (configuration) {
                     } else {
                         // TODO move this to separate function
                         (function () {
-                            field.xtype = 'combo';
+                            field.xtype = dimensionMetadata.xtype || 'combo';
                             var results = [];
 
                             if (dimension.possibleValues.data) {
@@ -550,12 +553,12 @@ OE.input.datasource.form.init = function (configuration) {
         } else {
             switch (dimension.type) {
                 case 'BOOLEAN':
-                    field.xtype = 'checkbox';
+                    field.xtype = dimensionMetadata.xtype || 'checkbox';
                     break;
                 case 'Int':
                 case 'INTEGER':
                 case 'LONG':
-                    field.xtype = 'numberfield';
+                    field.xtype = dimensionMetadata.xtype || 'numberfield';
                     field.minValue = OE.util.getNumberValue(dimensionMetadata.minValue, Number.NEGATIVE_INFINITY);
                     field.maxValue = OE.util.getNumberValue(dimensionMetadata.maxValue, Number.MAX_VALUE);
                     field.allowDecimals = OE.util.getBooleanValue(dimensionMetadata.allowDecimals, false);
@@ -563,7 +566,7 @@ OE.input.datasource.form.init = function (configuration) {
                     break;
                 case 'DOUBLE':
                 case 'FLOAT':
-                    field.xtype = 'numberfield';
+                    field.xtype = dimensionMetadata.xtype || 'numberfield';
                     field.minValue = OE.util.getNumberValue(dimensionMetadata.minValue, Number.NEGATIVE_INFINITY);
                     field.maxValue = OE.util.getNumberValue(dimensionMetadata.maxValue, Number.MAX_VALUE);
                     field.allowDecimals = OE.util.getBooleanValue(dimensionMetadata.allowDecimals, true);
@@ -577,7 +580,8 @@ OE.input.datasource.form.init = function (configuration) {
                     }
 
                     // Options are: textfield, textarea, and colorfield
-                    field.xtype = OE.util.getStringValue(dimensionMetadata.xtype, 'textfield');
+                    field.xtype = dimensionMetadata.xtype ||
+                        OE.util.getStringValue(dimensionMetadata.xtype, 'textfield');
                     if (field.xtype === 'colorfield') {
                         // Override afterRender for colorfield
                         // IE and firefox did not render color field correctly
@@ -598,7 +602,7 @@ OE.input.datasource.form.init = function (configuration) {
                     if (field.xtype === 'textfield') {
                         if (OE.util.getBooleanValue(dimensionMetadata.password, false)) {
 
-                            field.xtype = 'fieldset';
+                            field.xtype = dimensionMetadata.xtype || 'fieldset';
                             field.width = OE.util.getNumberValue(metadata.labelWidth, 500);
                             field.border = false;
                             field.cls = 'reportFormPanel';
@@ -674,7 +678,7 @@ OE.input.datasource.form.init = function (configuration) {
                     });
                     break;
                 default:
-                    field.xtype = 'textfield';
+                    field.xtype = dimensionMetadata.xtype || 'textfield';
                     break;
             }
         }
