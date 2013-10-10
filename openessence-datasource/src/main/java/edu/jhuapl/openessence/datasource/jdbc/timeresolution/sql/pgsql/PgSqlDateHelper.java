@@ -99,4 +99,65 @@ public class PgSqlDateHelper {
         yCal.setTimeInMillis((long) AWN * ms7d);//
         return yCal.get(Calendar.YEAR);
     }
+    
+    /**
+     * Calculate EPI week using CDC EPI week definition. The first epi week of
+     * the year ends, by definition, on the first Saturday of January, as long
+     * as it falls at least four days into the month. Each epi week begins on a
+     * Sunday and ends on a Saturday.
+     * 
+     * @param date 
+     * @return EPI week number
+     */
+    public static int getEpiWeek(Calendar date) {
+        Calendar dt = Calendar.getInstance();
+        dt.setTime(date.getTime());
+        dt.setFirstDayOfWeek(Calendar.SUNDAY);
+        dt.setMinimalDaysInFirstWeek(4);
+        
+        Calendar d4 = Calendar.getInstance();
+        d4.setFirstDayOfWeek(Calendar.SUNDAY);
+        d4.setMinimalDaysInFirstWeek(4);
+        d4.set(dt.get(Calendar.YEAR), 0, 4, 0, 0, 0);
+        d4.set(Calendar.MILLISECOND, 0);
+
+        int result = dt.get(Calendar.WEEK_OF_YEAR) + 1 - d4.get(Calendar.WEEK_OF_YEAR);
+
+        if (result == 0) {
+            Calendar cal = Calendar.getInstance();
+            cal.set(dt.get((Calendar.YEAR) - 1), 11, (24 + dt.get(Calendar.DATE)), 0, 0, 0);
+            result = getEpiWeek(cal) + 1;
+        }
+
+        if (dt.get(Calendar.MONTH) == 11 && ((dt.get(Calendar.DATE) - (dt.get(Calendar.DAY_OF_WEEK) + 1)) >= 28)) {
+            result = 1;
+        }
+
+        return result;
+    }
+    
+    /**
+     * Calculate EPI year using CDC EPI week definition. The first epi week of
+     * the year ends, by definition, on the first Saturday of January, as long
+     * as it falls at least four days into the month. Each epi week begins on a
+     * Sunday and ends on a Saturday.
+     * 
+     * @param date 
+     * @return EPI year number
+     */
+    public static int getEpiYear(Calendar date) {
+        Calendar dt = Calendar.getInstance();
+        dt.setTime(date.getTime());
+        dt.setFirstDayOfWeek(Calendar.SUNDAY);
+
+        int result = dt.get(Calendar.YEAR);
+        int epiWeek = getEpiWeek(dt);
+        if(epiWeek == 1 && dt.get(Calendar.MONTH) == 11){
+            result = result +1;
+        }
+        if(epiWeek > 50 && dt.get(Calendar.MONTH) == 0){
+            result = result -1;
+        }
+        return result;
+    }
 }

@@ -81,6 +81,7 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
         });
 
         if (configuration.timeseriesCallback && OE.util.getBooleanValue(this.metadata.supportTimeseries, true)) {
+        	var yearAsSeries = OE.util.getBooleanValue(this.metadata.yearAsSeries, false);
             buttons.push({
                 text: messagesBundle['query.timeseries'],
                 handler: function () {
@@ -94,7 +95,8 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
                         }
                     });
 
-                    me.showTimeSeriesParamatersForm({accumulations: accumulations});
+                    me.showTimeSeriesParamatersForm({accumulations: accumulations,
+                        yearAsSeries : yearAsSeries});
                 },
                 scope: configuration
             });
@@ -407,7 +409,8 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
                     //filters.displayVals = me.getSelectedDisplayVals();
                     me.timeseriesCallback({
                         filters: filters,
-                        dsId: ds
+                        dsId: ds,
+                        yearAsSeries: formConfiguration.yearAsSeries
                     });
                 }
 
@@ -520,10 +523,16 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
 
         var grid = form.getComponent('groupByGrid');
         grid.on('afterrender', function () {
-            Ext.each(me.results, function (dim) {
-                var selectionModel = grid.getSelectionModel();
-                selectionModel.selectRow(grid.store.find('dimensionId', dim), true);
-            });
+        	if(me.results){
+	            Ext.each(me.results, function (dim) {
+	                var selectionModel = grid.getSelectionModel();
+	                selectionModel.selectRow(grid.store.find('dimensionId', dim), true);
+	            });
+        	}
+        	// OE-447: Pre-select all fields in Details group by
+        	else {
+        		grid.getSelectionModel().selectAll();
+        	}
         });
 
         var win = new Ext.Window({

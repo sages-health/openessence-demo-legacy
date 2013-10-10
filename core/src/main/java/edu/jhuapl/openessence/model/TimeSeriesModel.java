@@ -43,6 +43,7 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
     private String[] accumId;
     private String[] timeseriesDenominator;
     private int prepull;
+    private boolean yearAsSeries;
 
     public TimeSeriesModel() {
         timeseriesTitle = "";
@@ -52,6 +53,15 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
         width = 900;
         height = 425;
         prepull = -1;
+        yearAsSeries = false;
+    }
+
+    public boolean isYearAsSeries() {
+        return yearAsSeries;
+    }
+
+    public void setYearAsSeries(boolean yearAsSeries) {
+        this.yearAsSeries = yearAsSeries;
     }
 
     public String getTimeseriesTitle() {

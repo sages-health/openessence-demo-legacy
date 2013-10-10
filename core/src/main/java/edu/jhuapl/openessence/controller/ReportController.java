@@ -29,6 +29,7 @@ package edu.jhuapl.openessence.controller;
 import edu.jhuapl.bsp.detector.DetectorHelper;
 import edu.jhuapl.bsp.detector.TemporalDetectorInterface;
 import edu.jhuapl.bsp.detector.TemporalDetectorSimpleDataObject;
+import edu.jhuapl.bsp.detector.exception.DetectorException;
 import edu.jhuapl.bsp.detector.temporal.epa.NoDetectorDetector;
 import edu.jhuapl.graphs.Encoding;
 import edu.jhuapl.graphs.GraphException;
@@ -60,7 +61,6 @@ import edu.jhuapl.openessence.datasource.jdbc.entry.JdbcOeDataEntrySource;
 import edu.jhuapl.openessence.datasource.jdbc.filter.FieldFilter;
 import edu.jhuapl.openessence.datasource.jdbc.filter.GteqFilter;
 import edu.jhuapl.openessence.datasource.jdbc.filter.LteqFilter;
-import edu.jhuapl.openessence.datasource.jdbc.filter.OneArgOpFilter;
 import edu.jhuapl.openessence.datasource.jdbc.filter.sorting.OrderByFilter;
 import edu.jhuapl.openessence.datasource.jdbc.timeresolution.sql.pgsql.PgSqlDateHelper;
 import edu.jhuapl.openessence.datasource.jdbc.timeresolution.sql.pgsql.PgSqlWeeklyHandler;
@@ -79,21 +79,17 @@ import edu.jhuapl.openessence.web.util.ErrorMessageException;
 import edu.jhuapl.openessence.web.util.FileExportUtil;
 import edu.jhuapl.openessence.web.util.Filters;
 import edu.jhuapl.openessence.web.util.Sorters;
+import edu.jhuapl.openessence.web.util.TSHelper;
 
 import org.apache.commons.codec.EncoderException;
 import org.apache.commons.codec.net.URLCodec;
 import org.apache.commons.lang.ArrayUtils;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonParser.Feature;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.TypeReference;
+import org.apache.commons.math3.util.Pair;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.NoSuchMessageException;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -102,7 +98,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -110,7 +107,6 @@ import java.io.OutputStream;
 import java.security.Principal;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -144,17 +140,19 @@ public class ReportController extends OeController {
     private static final Logger log = LoggerFactory.getLogger(ReportController.class);
     private static final Logger translationLog = LoggerFactory.getLogger("TranslationLogger");
 
+    private DateFormat dateFormatDayMonth = new SimpleDateFormat("MM-dd");
+
     private DateFormat dateFormatDay = new SimpleDateFormat("yyyy-MM-dd");
     private DateFormat dateFormatWeek = new SimpleDateFormat("yyyy-MM-dd-'W'w");
     private DateFormat dateFormatWeekPart = new SimpleDateFormat("yyyy-MM-dd");
     private DateFormat dateFormatMonth = new SimpleDateFormat("yyyy-MM");
     private DateFormat dateFormatYear = new SimpleDateFormat("yyyy");
 
-    private static final String DAILY = "daily";
-    private static final String WEEKLY = "weekly";
-    private static final String MONTHLY = "monthly";
-    private static final String YEARLY = "yearly";
-    private static final String TIMEZONE_ENABLED = "timezone.enabled";
+    public static final String DAILY = "daily";
+    public static final String WEEKLY = "weekly";
+    public static final String MONTHLY = "monthly";
+    public static final String YEARLY = "yearly";
+    public static final String TIMEZONE_ENABLED = "timezone.enabled";
     private String graphDir;
 
     @Resource
@@ -297,39 +295,24 @@ public class ReportController extends OeController {
                                        Principal principal, WebRequest request, HttpServletRequest servletRequest)
             throws ErrorMessageException {
 
+        // if we are doing each year as it's own series
+        // update start and end date based on selected accum value
+        if (model.isYearAsSeries()) {
+            return createEachYearAsSeries(ds, model, principal, request, servletRequest);
+        }
+        
         Map<String, Object> result = new HashMap<String, Object>();
 
         DataSeriesSource dss = null;
         if (ds instanceof DataSeriesSource) {
             dss = (DataSeriesSource) ds;
-
         }
 
-        String groupId = "";
-        String resolution = "";
-
-        // TODO put this logic in a custom HandlerMethodArgumentResolver
-        if (model.getTimeseriesGroupResolution() != null) {
-            String[] parts = model.getTimeseriesGroupResolution().split(":");
-            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
-                groupId = parts[0];
-                resolution = parts[1];
-            }
-        }
-
-        if (groupId == null || groupId.isEmpty()) {
-            throw new OeDataSourceException("No Grouping Dimension ID specified");
-        }
-
+        String groupId = TSHelper.getGroupId(model);
         GroupingDimension groupingDim = dss.getGroupingDimension(groupId);
-        // find resolution handlers as appropriate for groupings
-        if (resolution == null || "".equals(groupId)) {
-            String[] res = groupingDim.getResolutions().toArray(new String[groupingDim.getResolutions().size()]);
-            if (res.length > 0) {
-                resolution = res[0];
-            }
-        }
+        String resolution = TSHelper.getResolution(model, groupingDim, groupId);
 
+        
         if (ds.getDimensionJoiner() != null) {
             ds.getDimensionJoiner().joinDimensions();
         }
@@ -341,11 +324,10 @@ public class ReportController extends OeController {
         final List<OrderByFilter> sorts = new ArrayList<OrderByFilter>();
         GroupingImpl group = new GroupingImpl(groupId, resolution);
 
-        if (resolution.equals(DAILY) && model.getPrepull() < 0) {
+        if(resolution.equals(DAILY) && model.getPrepull() < 0) {
             model.setPrepull(DEFAULT_DAILY_PREPULL);
         }
-
-        if (model.getPrepull() < 0) {
+        if ( model.getPrepull() < 0) {
             model.setPrepull(0);
         }
 
@@ -361,49 +343,34 @@ public class ReportController extends OeController {
             results.add(ds.getResultDimension(d.getId()));
         }
 
+        Map<String, String[]> params = request.getParameterMap();
+        
         Map<String, ResolutionHandler> resolutionHandlers = dss.getGroupingDimension(group.getId()).getResolutionsMap();
-        List<Filter> filters = new Filters().getFilters(request.getParameterMap(), dss, group.getId(),
+        List<Filter> filters = new Filters().getFilters(params, dss, group.getId(),
                                                         model.getPrepull(), resolution,
                                                         getCalWeekStartDay(resolutionHandlers));
-
-        String clientTimezone = null;
-        String timezoneEnabledString = messageSource.getMessage(TIMEZONE_ENABLED, "false");
-        if (timezoneEnabledString.equalsIgnoreCase("true")) {
-            clientTimezone = ControllerUtils.getRequestTimezoneAsHourMinuteString(request);
-        }
+        String clientTimezone = TSHelper.getClientTimezone(request, messageSource);
+        
         //details query for all records
         Collection<Record> records = new DetailsQuery().performDetailsQuery(ds, results, dimensions, filters, sorts,
                                                                             groupings, false, clientTimezone);
 
         //create graph data and set known configuration
-        DefaultGraphData graphData = new DefaultGraphData();
-        graphData.setShowSingleSeverityLegends(false);
-        graphData.setGraphTitle(model.getTimeseriesTitle());
-        graphData.setGraphWidth(model.getWidth());
-        graphData.setGraphHeight(model.getHeight());
-        graphData.setShowLegend(true);
-        graphData.setBackgroundColor(new Color(255, 255, 255, 0));
+        DefaultGraphData graphData = TSHelper.buildGraphData(model);
 
-        // only set an array if they provided one
-        if (model.getGraphBaseColors() != null && model.getGraphBaseColors().length > 0) {
-            // TODO leverage Spring to convert colors
-            graphData.setGraphBaseColors(ControllerUtils.getColorsFromHex(Color.BLACK, model.getGraphBaseColors()));
-        }
-
-        String graphTimeSeriesUrl = request.getContextPath() + servletRequest.getServletPath()
-                                    + "/report/graphTimeSeries";
-        graphTimeSeriesUrl = appendGraphFontParam(ds, graphTimeSeriesUrl);
+        String graphTimeSeriesUrl =
+                TSHelper.buildTimeSeriesURL(ds, request.getContextPath(), servletRequest.getServletPath(),
+                        messageSource);
 
         //TODO, this still uses the html method from the graph module and then wraps in json...move to a pure json method
         Map<String, Object> timeseriesResult = createTimeseries(principal.getName(), dss,
-                                                                filters, group, resolution, model.getPrepull(),
-                                                                graphTimeSeriesUrl,
-                                                                records, accumulations, timeseriesDenominators,
-                                                                model.getTimeseriesDetectorClass(),
-                                                                model.isIncludeDetails(),
-                                                                model.isDisplayIntervalEndDate(), graphData,
-                                                                ControllerUtils.getRequestTimezone(request), model.isGraphExpectedValues());
-
+                                               filters, group, resolution, model.getPrepull(),
+                                               graphTimeSeriesUrl,
+                                               records, accumulations, timeseriesDenominators,
+                                               model.getTimeseriesDetectorClass(),
+                                               model.isIncludeDetails(),
+                                               model.isDisplayIntervalEndDate(), graphData,
+                                               ControllerUtils.getRequestTimezone(request), model.isGraphExpectedValues());
         result.putAll(timeseriesResult);
 
         return result;
@@ -460,10 +427,10 @@ public class ReportController extends OeController {
         }
 
         String graphBarUrl = request.getContextPath() + servletRequest.getServletPath() + "/report/graphBar";
-        graphBarUrl = appendGraphFontParam(ds, graphBarUrl);
+        graphBarUrl = TSHelper.appendGraphFontParam(ds, graphBarUrl, messageSource);
 
         String graphPieUrl = request.getContextPath() + servletRequest.getServletPath() + "/report/graphPie";
-        graphPieUrl = appendGraphFontParam(ds, graphPieUrl);
+        graphPieUrl = TSHelper.appendGraphFontParam(ds, graphPieUrl, messageSource);
 
         // TODO eliminate all the nesting in response and just use accumulation and chartID properties
         Map<String, Object> response = new HashMap<String, Object>();
@@ -520,6 +487,372 @@ public class ReportController extends OeController {
         return response;
     }
 
+    private boolean isEpiWeekEnabled() {
+        return "0"
+                .equals(messageSource.getMessage("epidemiological.day.start", Integer.toString(DEFAULT_WEEK_STARTDAY)))
+                && "1".equals(messageSource.getMessage("use.cdc.epiweek", "0"));
+    }
+    
+    private Map<String, Object> createEachYearAsSeries(JdbcOeDataSource ds, TimeSeriesModel model, Principal principal,
+            WebRequest request, HttpServletRequest servletRequest) throws ErrorMessageException {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("success", false);
+
+        DataSeriesSource dss = null;
+        if (ds instanceof DataSeriesSource) {
+            dss = (DataSeriesSource) ds;
+        }
+
+        String groupId = TSHelper.getGroupId(model);
+        GroupingDimension groupingDim = dss.getGroupingDimension(groupId);
+        String timeResolution = TSHelper.getResolution(model, groupingDim, groupId);
+        GroupingImpl group = new GroupingImpl(groupId, timeResolution);
+
+        String dateFieldName = group.getId();
+
+        if (ds.getDimensionJoiner() != null) {
+            ds.getDimensionJoiner().joinDimensions();
+        }
+
+        List<Dimension> timeseriesDenominators = ControllerUtils.getAccumulationsByIds(ds,
+                model.getTimeseriesDenominator(), false);
+
+        final List<OrderByFilter> sorts = new ArrayList<OrderByFilter>();
+        model.setPrepull(0);
+
+        List<Grouping> groupings = new ArrayList<Grouping>();
+        groupings.add(groupingDim.makeGrouping(timeResolution));
+
+        String clientTimezoneString = TSHelper.getClientTimezone(request, messageSource);
+
+        TimeZone clientTimezone = ControllerUtils.getRequestTimezone(request);
+        int timeOffsetMillies = TSHelper.getTimezoneOffsetMillies(messageSource, clientTimezone);
+
+        List<Dimension> selectedAccumulations = ControllerUtils.getAccumulationsByIds(ds, model.getAccumId());
+        Map<String, ResolutionHandler> resolutionHandlers = dss.getGroupingDimension(group.getId()).getResolutionsMap();
+
+        // create graph data and set known configuration
+        DefaultGraphData graphData = TSHelper.buildGraphData(model);
+        String graphTimeSeriesUrl =
+                TSHelper.buildTimeSeriesURL(ds, request.getContextPath(), servletRequest.getServletPath(),
+                        messageSource);
+
+        double[][] allCounts = new double[selectedAccumulations.size()][];
+        int[][] allColors = new int[selectedAccumulations.size()][];
+        String[][] allAltTexts = new String[selectedAccumulations.size()][];
+        String[] dates = new String[] { "" };
+        String[] xAxisLabels = new String[] { "" };
+        double[][] allExpecteds = new double[selectedAccumulations.size()][];
+        double[][] allLevels = new double[selectedAccumulations.size()][];
+        String[][] allLineSetURLs = new String[selectedAccumulations.size()][];
+        String[][] allSwitchInfo = new String[selectedAccumulations.size()][];
+        String[] lineSetLabels = new String[selectedAccumulations.size()];
+        boolean[] displayAlerts = new boolean[selectedAccumulations.size()];
+
+        String[][] labels = new String[selectedAccumulations.size()][];
+        
+        
+        // -- Handles Denominator Types -- //
+        double multiplier = 1.0;
+        boolean percentBased = false;
+        String yAxisLabel = messageSource.getDataSourceMessage("graph.count", dss);
+        boolean isDetectionDetector = !NoDetectorDetector.class.getName().equalsIgnoreCase(
+                model.getTimeseriesDetectorClass());
+        if (timeseriesDenominators != null && !timeseriesDenominators.isEmpty()) {
+            // divisor is the sum of timeseriesDenominators
+            multiplier = 100.0;
+            percentBased = true;
+            yAxisLabel = messageSource.getDataSourceMessage("graph.percent", dss);
+        }
+        // for each accumulation we run detection and gather results
+        int accumIndex = 0;
+        boolean epiWeekEnabled = isEpiWeekEnabled();
+        boolean dataFound = false;
+        // Accumulation will be year
+        // for each year run TS query and plot results
+        for (Dimension accumulation : selectedAccumulations) {
+            List<Dimension> accumulations = new ArrayList<Dimension>();
+            accumulations.add(accumulation);
+
+            // union accumulations to get all results
+            List<Dimension> dimensions = new ArrayList<Dimension>(ControllerUtils.unionDimensions(accumulations,
+                    timeseriesDenominators));
+
+            // create results group dimension + all dimensions
+            final List<Dimension> results = new ArrayList<Dimension>();
+            for (Dimension d : dimensions) {
+                results.add(ds.getResultDimension(d.getId()));
+            }
+
+            // add start and end dates for this accumulation/year
+            Map<String, String[]> params = TSHelper.fixStartEndDatesForYearAsSeries(request.getParameterMap(),
+                    accumulation, groupId, timeResolution, epiWeekEnabled);
+
+            List<Filter> filters = new Filters().getFilters(params, dss, group.getId(), model.getPrepull(),
+                    timeResolution, getCalWeekStartDay(resolutionHandlers));
+
+            Pair<Date, Date> tmpDates = TSHelper.getStartEndDates(groupingDim, filters);
+            Date startDate = tmpDates.getFirst();
+            Date endDate = tmpDates.getSecond();
+
+            // details query for all records
+            Collection<Record> records = new DetailsQuery().performDetailsQuery(ds, results, dimensions, filters,
+                    sorts, groupings, false, clientTimezoneString);
+
+            Calendar startDayCal = Calendar.getInstance(clientTimezone);
+            startDayCal.setTime(startDate);
+            startDayCal.add(Calendar.MILLISECOND, timeOffsetMillies);
+
+            // get data grouped by group dimension
+            List<AccumPoint> points = extractAccumulationPoints(principal.getName(), dss, records,
+                    startDayCal.getTime(), endDate, dimensions, group, resolutionHandlers);
+            
+            String accumIdTranslated = accumulation.getDisplayName();
+            if (accumIdTranslated == null) {
+                accumIdTranslated = messageSource.getDataSourceMessage(accumulation.getId(), dss);
+            }
+
+            if (points.size() > 0) {
+                dataFound = true;
+                DateFormat dateFormat = getDateFormat(timeResolution);
+                DateFormat tmpDateFormat = (DateFormat) dateFormat.clone();
+                tmpDateFormat.setTimeZone(clientTimezone);
+
+                // for yearly series, prepull is 0. Thus, queryStartDate is same
+                // as start date
+                Date queryStartDate = TSHelper.getQueryStartDate(startDayCal, timeResolution, model.getPrepull());
+
+                // -- Handles Denominator Types -- //
+                double[] divisors = new double[points.size()];
+
+                // if there is a denominator we need to further manipulate the
+                // data
+                if (timeseriesDenominators != null && !timeseriesDenominators.isEmpty()) {
+                    // divisor is the sum of timeseriesDenominators
+                    divisors = totalSeriesValues(points, timeseriesDenominators);
+                } else {
+                    // the query is for total counts
+                    Arrays.fill(divisors, 1.0);
+                }
+
+                // get all results
+                Collection<Dimension> dims = new ArrayList<Dimension>(dss.getResultDimensions());
+                Collection<String> dimIds = ControllerUtils.getDimensionIdsFromCollection(dims);
+                Collection<String> accIds = ControllerUtils.getDimensionIdsFromCollection(dss.getAccumulations());
+                // remove extra accumulations in the result set using string ids
+                dimIds.removeAll(accIds);
+
+                TemporalDetectorInterface TDI = (TemporalDetectorInterface) DetectorHelper.createObject(model
+                        .getTimeseriesDetectorClass());
+                TemporalDetectorSimpleDataObject TDDO = new TemporalDetectorSimpleDataObject();
+
+                int[] colors;
+                double[] counts;
+                String[] altTexts;
+                double[] expecteds;
+                double[] levels;
+                String[] switchInfo;
+                String[] urls;
+                String[] tmpLabels;
+
+                // pull the counts from the accum array points
+                double[] seriesDoubleArray = generateSeriesValues(points, accumulation.getId());
+
+                // run divisor before detection
+                for (int i = 0; i < seriesDoubleArray.length; i++) {
+                    double div = divisors[i];
+                    if (div == 0) {
+                        seriesDoubleArray[i] = 0.0;
+                    } else {
+                        seriesDoubleArray[i] = (seriesDoubleArray[i] / div) * multiplier;
+                    }
+                }
+
+                // run detection
+                TDDO.setCounts(seriesDoubleArray);
+                TDDO.setStartDate(startDate);
+                TDDO.setTimeResolution(timeResolution);
+
+                try {
+                    TDI.runDetector(TDDO);
+                } catch (DetectorException e) {
+                    String errorMessage = "Failure to create Timeseries";
+                    if (e.getMessage() != null) {
+                        errorMessage = errorMessage + ":<BR>" + e.getMessage();
+                    }
+                    result.put("message", errorMessage);
+                    result.put("success", false);
+                    return result;
+                }
+
+                TDDO.cropStartup(model.getPrepull());
+                counts = TDDO.getCounts();
+                int tddoLength = counts.length;
+
+                if (!DAILY.equalsIgnoreCase(timeResolution)) {
+                    // toggle between start date and end date
+                    // TDDO.setDates(getOurDates(startDate, endDate, tddoLength,
+                    // timeResolution));
+                    TDDO.setDates(getOurDates(queryStartDate, endDate, tddoLength, timeResolution,
+                            model.isDisplayIntervalEndDate()));
+                }
+                double[] tcolors = TDDO.getColors();
+
+                Date[] tdates = TDDO.getDates();
+                altTexts = TDDO.getAltTexts();
+                expecteds = TDDO.getExpecteds();
+                levels = TDDO.getLevels();
+                switchInfo = TDDO.getSwitchInfo();
+                colors = new int[tddoLength];
+                dates = new String[tddoLength];
+                xAxisLabels = new String[tddoLength];
+                urls = new String[tddoLength];
+                tmpLabels = new String [tddoLength];
+                
+                // add the accumId for the current series
+                dimIds.add(accumulation.getId());
+
+                StringBuilder jsCall = new StringBuilder();
+                jsCall.append("javascript:OE.report.datasource.showDetails({");
+                jsCall.append("dsId:'").append(dss.getClass().getName()).append("'");
+                // specify results
+                jsCall.append(",results:[").append(StringUtils.collectionToDelimitedString(dimIds, ",", "'", "'"))
+                        .append(']');
+                // specify accumId
+                jsCall.append(",accumId:'").append(accumulation.getId()).append("'");
+
+                addJavaScriptFilters(jsCall, filters, dateFieldName);
+
+                // this builds urls and hover texts
+                int startDay = getWeekStartDay(resolutionHandlers);
+
+                Calendar tmpCal = Calendar.getInstance(clientTimezone);
+
+                for (int i = 0; i < tddoLength; i++) {
+                    colors[i] = (int) tcolors[i];
+
+                    // For a time series data point, set time to be current
+                    // server time
+                    // This will allow us to convert this data point date object
+                    // to be request timezone date
+                    tmpCal.setTime(tdates[i]);
+                    tmpCal.add(Calendar.MILLISECOND, timeOffsetMillies);
+
+                    if (timeResolution.equals(WEEKLY)) {
+                        int weekNum = PgSqlDateHelper.getWeekOfYear(startDay, tmpCal);
+                        int yearNum = PgSqlDateHelper.getYear(startDay, tmpCal);
+                        if (epiWeekEnabled) {
+                            weekNum = PgSqlDateHelper.getEpiWeek(tmpCal);
+                            yearNum = PgSqlDateHelper.getEpiYear(tmpCal);
+                        } 
+                        dates[i] = dateFormatWeekPart.format(tdates[i]) + "-W" + weekNum + "-"
+                                + yearNum;
+                        tmpLabels[i] = "W" + (i+1);
+                    } else {
+                        dates[i] = tmpDateFormat.format(tmpCal.getTime());
+                        tmpLabels[i] = dateFormatDayMonth.format(tmpCal.getTime());
+                    }
+
+                    altTexts[i] = "(" + accumIdTranslated + ") " + // Accum
+                            "Date: " + dates[i] + // Date
+                            ", Level: " + TSHelper.NUM_FORMAT3.format(levels[i]) + // Level
+                            ", Count: " + ((int) counts[i]) + // Count
+                            ", Expected: " + TSHelper.NUM_FORMAT1.format(expecteds[i]); // Expected
+
+                    if (switchInfo != null) {
+                        altTexts[i] += ", Switch: " + switchInfo[i] + ", ";
+                    }
+
+                    urls[i] = TSHelper.buildDetailsURL(dateFieldName, timeResolution, clientTimezone, tdates[i],
+                            startDay, jsCall);
+                }
+
+                allCounts[accumIndex] = counts;
+                allColors[accumIndex] = colors;
+                allAltTexts[accumIndex] = altTexts;
+                allExpecteds[accumIndex] = expecteds;
+                allLevels[accumIndex] = levels;
+                allLineSetURLs[accumIndex] = urls;
+                allSwitchInfo[accumIndex] = switchInfo;
+                lineSetLabels[accumIndex] = accumIdTranslated;
+                displayAlerts[accumIndex] = isDetectionDetector;
+                labels[accumIndex] = tmpLabels;
+                
+            } else {
+                allCounts[accumIndex] = new double[0];
+                allColors[accumIndex] = new int[0];
+                allAltTexts[accumIndex] = new String[0];
+                allExpecteds[accumIndex] = new double[0];
+                allLevels[accumIndex] = new double[0];
+                allLineSetURLs[accumIndex] = new String[0];
+                allSwitchInfo[accumIndex] = new String[0];
+                lineSetLabels[accumIndex] = accumIdTranslated;
+                displayAlerts[accumIndex] = isDetectionDetector;
+                labels[accumIndex] = new String[0];
+            }
+            accumIndex++;
+        }
+        if (dataFound) {
+            // find max series length
+            int maxDataLength = TSHelper.findMaxDataLength(allCounts);
+
+            // fix each series to be same length
+            allCounts = TSHelper.updateDoubleArray(allCounts, maxDataLength, 0);
+            allColors = TSHelper.updateIntArray(allColors, maxDataLength, 0);
+            allAltTexts = TSHelper.updateStringArray(allAltTexts, maxDataLength, "");
+            xAxisLabels = TSHelper.getXAxisLabels(labels, maxDataLength);
+            allExpecteds = TSHelper.updateDoubleArray(allExpecteds, maxDataLength, 0);
+            allLineSetURLs = TSHelper.updateStringArray(allLineSetURLs, maxDataLength, "");
+            allLevels = TSHelper.updateDoubleArray(allLevels, maxDataLength, 0);
+            
+            
+            graphData.setShowSingleAlertLegends(isDetectionDetector);
+
+            graphData.setCounts(allCounts);
+            graphData.setColors(allColors);
+            graphData.setAltTexts(allAltTexts);
+            graphData.setXLabels(xAxisLabels);
+            graphData.setExpecteds(allExpecteds);
+            graphData.setLevels(allLevels);
+            graphData.setLineSetURLs(allLineSetURLs);
+
+            graphData.setLineSetLabels(lineSetLabels);
+            graphData.setDisplayAlerts(displayAlerts);
+            // graphData.setDisplaySeverityAlerts(displayAlerts);
+            graphData.setPercentBased(percentBased);
+
+            String xAxisLabel = messageSource.getDataSourceMessage(group.getResolution(), dss);
+            graphData.setXAxisLabel(xAxisLabel);
+            graphData.setYAxisLabel(yAxisLabel);
+
+            if (model.isIncludeDetails()) {
+                TSHelper.addDetailsToResult(result, allCounts, xAxisLabels, lineSetLabels, allLevels, allExpecteds,
+                        allSwitchInfo, allColors);
+            }
+
+            GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
+            GraphController gc = getGraphController(null, hndl, principal.getName());
+            // TODO figure out why I (hodancj1) added this to be accumulation
+            // size ~Feb 2012
+            // gc.setMaxLegendItems(accumulations.size());
+
+            try {
+                TSHelper.addGraphConfigToResult(result, gc, graphData, graphTimeSeriesUrl, allCounts, model.isGraphExpectedValues());
+            } catch (IOException e) {
+                log.error("Failure to create Timeseries", e);
+            }
+            result.put("success", true);
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("<h2>" + messageSource.getDataSourceMessage("graph.nodataline1", dss) + "</h2>");
+            sb.append("<p>" + messageSource.getDataSourceMessage("graph.nodataline2", dss) + "</p>");
+            result.put("html", sb.toString());
+            result.put("success", true);
+        }
+
+        return result;
+    }
+    
     private Map<String, Object> createTimeseries(String userPrincipalName, DataSeriesSource dss, List<Filter> filters,
                                                  GroupingImpl group,
                                                  String timeResolution, Integer prepull, String graphTimeSeriesUrl,
@@ -537,34 +870,15 @@ public class ReportController extends OeController {
             GroupingDimension grpdim = dss.getGroupingDimension(group.getId());
             resolutionHandlers = grpdim.getResolutionsMap();
             String dateFieldName = group.getId();
-            Date startDate = null;
-            Date endDate = null;
-            if (grpdim != null && (grpdim.getSqlType() == FieldType.DATE
-                                   || grpdim.getSqlType() == FieldType.DATE_TIME)) {
-                for (Filter f : filters) {
-                    if (f instanceof OneArgOpFilter) {
-                        OneArgOpFilter of = (OneArgOpFilter) f;
-                        if (of.getFilterId().equalsIgnoreCase(grpdim.getId()) && (of.getSqlSnippet("")
-                                                                                          .contains(">="))) {
-                            startDate = (Date) of.getArguments().get(0);
-                        } else if (of.getFilterId().equalsIgnoreCase(grpdim.getId()) && (of.getSqlSnippet("")
-                                                                                                 .contains("<="))) {
-                            endDate = (Date) of.getArguments().get(0);
-                        }
-                    }
-                }
-            }
+            Pair<Date, Date> tmpDates = TSHelper.getStartEndDates(grpdim, filters);
+            Date startDate = tmpDates.getFirst();
+            Date endDate = tmpDates.getSecond();
+            
             //union accumulations to get all results
-            List<Dimension>
-                    dimensions =
+            List<Dimension> dimensions =
                     new ArrayList<Dimension>(ControllerUtils.unionDimensions(accumulations, timeseriesDenominators));
 
-            int timeOffsetMillies = 0;
-            String timezoneEnabledString = messageSource.getMessage(TIMEZONE_ENABLED, "false");
-            if (timezoneEnabledString.equalsIgnoreCase("true")) {
-                timeOffsetMillies = (clientTimezone.getRawOffset() - clientTimezone.getDSTSavings()) -
-                                    (TimeZone.getDefault().getRawOffset() - TimeZone.getDefault().getDSTSavings());
-            }
+            int timeOffsetMillies = TSHelper.getTimezoneOffsetMillies(messageSource, clientTimezone);
             Calendar startDayCal = Calendar.getInstance(clientTimezone);
             startDayCal.setTime(startDate);
             startDayCal.add(Calendar.MILLISECOND, timeOffsetMillies);
@@ -575,29 +889,11 @@ public class ReportController extends OeController {
                     extractAccumulationPoints(userPrincipalName, dss, records, startDayCal.getTime(), endDate,
                                               dimensions, group, resolutionHandlers);
             if (points.size() > 0) {
-                DateFormat dateFormat = getDateFormat(timeResolution); //dateFormat.setTimeZone(timezone);
+                DateFormat dateFormat = getDateFormat(timeResolution); 
                 DateFormat tmpDateFormat = (DateFormat) dateFormat.clone();
                 tmpDateFormat.setTimeZone(clientTimezone);
 
-                // number format for level
-                NumberFormat numFormat3 = NumberFormat.getNumberInstance();
-                numFormat3.setMinimumFractionDigits(0);
-                numFormat3.setMaximumFractionDigits(3);
-
-                // number format for expected count
-                NumberFormat numFormat1 = NumberFormat.getNumberInstance();
-                numFormat1.setMinimumFractionDigits(0);
-                numFormat1.setMaximumFractionDigits(1);
-
-                Calendar cal = new GregorianCalendar();
-                cal.setTime(startDayCal.getTime());
-                //offset start date to match prepull offset
-                if (timeResolution.equals("weekly")) {
-                    cal.add(Calendar.DATE, (7 * prepull));
-                } else if (timeResolution.equals("daily")) {
-                    cal.add(Calendar.DATE, prepull);
-                }
-                Date queryStartDate = cal.getTime();
+                Date queryStartDate = TSHelper.getQueryStartDate(startDayCal, timeResolution, prepull);
 
                 //-- Handles Denominator Types -- //
                 double[] divisors = new double[points.size()];
@@ -628,7 +924,7 @@ public class ReportController extends OeController {
                 double[][] allLevels = new double[accumulations.size()][];
                 String[][] allLineSetURLs = new String[accumulations.size()][];
                 String[][] allSwitchInfo = new String[accumulations.size()][];
-                String[] lineSetLabels = new String[accumulations.size() + 1];
+                String[] lineSetLabels = new String[accumulations.size()];
                 boolean[] displayAlerts = new boolean[accumulations.size()];
 
                 //get all results
@@ -681,9 +977,8 @@ public class ReportController extends OeController {
 
                     try {
                         TDI.runDetector(TDDO);
-                    } catch (Exception e) {
-                        log.error("", e);
-                        String errorMessage = "Failure to create timeseries";
+                    } catch (DetectorException e) {
+                        String errorMessage = "Failure to create Timeseries";
                         if (e.getMessage() != null) {
                             errorMessage = errorMessage + ":<BR>" + e.getMessage();
                         }
@@ -730,83 +1025,38 @@ public class ReportController extends OeController {
                     //this builds urls and hover texts
                     int startDay = getWeekStartDay(resolutionHandlers);
 
-                    Calendar c = Calendar.getInstance(clientTimezone);
+                    Calendar tmpCal = Calendar.getInstance(clientTimezone);
 
-//				   Calendar curr = Calendar.getInstance();
+//                 Calendar curr = Calendar.getInstance();
                     for (int i = 0; i < tddoLength; i++) {
                         colors[i] = (int) tcolors[i];
 
                         // For a time series data point, set time to be current server time
                         // This will allow us to convert this data point date object to be request timezone date
-                        c.setTime(tdates[i]);
-                        c.add(Calendar.MILLISECOND, timeOffsetMillies);
+                        tmpCal.setTime(tdates[i]);
+                        tmpCal.add(Calendar.MILLISECOND, timeOffsetMillies);
 
                         if (timeResolution.equals(WEEKLY)) {
                             dates[i] = dateFormatWeekPart.format(tdates[i])
-                                       + "-W" + PgSqlDateHelper.getWeekOfYear(startDay, c) + "-"
-                                       + PgSqlDateHelper.getYear(startDay, c);
+                                       + "-W" + PgSqlDateHelper.getWeekOfYear(startDay, tmpCal) + "-"
+                                       + PgSqlDateHelper.getYear(startDay, tmpCal);
                         } else {
-                            dates[i] = tmpDateFormat.format(c.getTime());
+                            dates[i] = tmpDateFormat.format(tmpCal.getTime());
                         }
 
                         altTexts[i] = "(" + accumIdTranslated + ") " + // Accum
                                       "Date: " + dates[i] + // Date
-                                      ", Level: " + numFormat3.format(levels[i]) + // Level
+                                      ", Level: " + TSHelper.NUM_FORMAT3.format(levels[i]) + // Level
                                       ", Count: " + ((int) counts[i]) + // Count
-                                      ", Expected: " + numFormat1.format(expecteds[i]); // Expected
+                                      ", Expected: " + TSHelper.NUM_FORMAT1.format(expecteds[i]); // Expected
 
                         if (switchInfo != null) {
                             altTexts[i] += ", Switch: " + switchInfo[i] + ", ";
                         }
 
-                        // build the click through url
-                        StringBuilder tmp = new StringBuilder(jsCall.toString());
-
-                        // add the date field with start and end dates from the data point
-                        if (!DAILY.equalsIgnoreCase(timeResolution)) {
-                            Calendar timeSet = Calendar.getInstance(clientTimezone);
-                            timeSet.setTime(tdates[i]);
-
-                            if (WEEKLY.equalsIgnoreCase(timeResolution)) {
-                                timeSet.set(Calendar.DAY_OF_WEEK, startDay + 1);
-                                tmp.append(",").append(dateFieldName).append("_start:'")
-                                        .append(timeSet.getTimeInMillis()).append("'");
-                                timeSet.add(Calendar.DAY_OF_YEAR, 6);
-                                tmp.append(",").append(dateFieldName).append("_end:'").append(timeSet.getTimeInMillis())
-                                        .append("'");
-                            } else if (MONTHLY.equalsIgnoreCase(timeResolution)) {
-                                // Compute last day of month
-                                timeSet.set(Calendar.DAY_OF_MONTH, 1);
-                                timeSet.add(Calendar.MONTH, 1);
-                                timeSet.add(Calendar.DAY_OF_YEAR, -1);
-                                tmp.append(",").append(dateFieldName).append("_end:'").append(timeSet.getTimeInMillis())
-                                        .append("'");
-                                // set first day of month
-                                timeSet.set(Calendar.DAY_OF_MONTH, 1);
-                                tmp.append(",").append(dateFieldName).append("_start:'")
-                                        .append(timeSet.getTimeInMillis()).append("'");
-                            } else if (YEARLY.equalsIgnoreCase(timeResolution)) {
-                                // Compute last day of month
-                                timeSet.set(Calendar.DATE, 31);
-                                timeSet.add(Calendar.MONTH, Calendar.DECEMBER);
-                                tmp.append(",").append(dateFieldName).append("_end:'").append(timeSet.getTimeInMillis())
-                                        .append("'");
-                                timeSet.set(Calendar.DATE, 1);
-                                timeSet.add(Calendar.MONTH, Calendar.JANUARY);
-                                tmp.append(",").append(dateFieldName).append("_start:'")
-                                        .append(timeSet.getTimeInMillis()).append("'");
-                            }
-                        } else {
-                            // compute end date for individual data points based on the selected resolution
-//						   detailsPointEndDate = computeEndDate(tdates[i],timeResolution);
-                            // add the date field with start and end dates from the data point
-                            tmp.append(",").append(dateFieldName).append("_start:'").append(tdates[i].getTime())
-                                    .append("'");
-                            tmp.append(",").append(dateFieldName).append("_end:'").append(tdates[i].getTime())
-                                    .append("'");
-                        }
-                        tmp.append("});");
-                        urls[i] = tmp.toString();
+                       
+                        urls[i] = TSHelper.buildDetailsURL(dateFieldName, timeResolution, clientTimezone, 
+                                tdates[i], startDay, jsCall);
                     }
 
                     allCounts[aIndex] = counts;
@@ -824,13 +1074,6 @@ public class ReportController extends OeController {
                     dimIds.remove(accumId);
                 }
 
-                lineSetLabels[aIndex] = "Expected Values";
-
-                GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
-                GraphController gc = getGraphController(null, hndl, userPrincipalName);
-                //TODO figure out why I (hodancj1) added this to be accumulation size ~Feb 2012
-                // gc.setMaxLegendItems(accumulations.size());
-
                 graphData.setShowSingleAlertLegends(isDetectionDetector);
                 graphData.setCounts(allCounts);
                 graphData.setColors(allColors);
@@ -844,80 +1087,21 @@ public class ReportController extends OeController {
                 // graphData.setDisplaySeverityAlerts(displayAlerts);
                 graphData.setPercentBased(percentBased);
 
-                graphData.setXAxisLabel(messageSource.getDataSourceMessage(group.getResolution(), dss));
+                String xAxisLabel = messageSource.getDataSourceMessage(group.getResolution(), dss);
+                graphData.setXAxisLabel(xAxisLabel);
                 graphData.setYAxisLabel(yAxisLabel);
-
-                int maxLabels = graphData.getGraphWidth() / 30;
-                graphData.setMaxLabeledCategoryTicks(Math.min(maxLabels, allCounts[0].length));
-
-                StringBuffer sb = new StringBuffer();
-                GraphObject graph = gc.writeTimeSeriesGraph(sb, graphData, true, true, false, graphTimeSeriesUrl, graphExpected);
-
-                result.put("html", sb.toString());
-
-                //added to build method calls from javascript
-                Map<String, Object> graphConfig = new HashMap<String, Object>();
-                graphConfig.put("address", graphTimeSeriesUrl);
-                graphConfig.put("graphDataId", graph.getGraphDataId());
-                graphConfig.put("imageMapName", graph.getImageMapName());
-
-                graphConfig.put("graphTitle", graphData.getGraphTitle());
-                graphConfig.put("xAxisLabel", graphData.getXAxisLabel());
-                graphConfig.put("yAxisLabel", graphData.getYAxisLabel());
-                graphConfig.put("xLabels", graphData.getXLabels());
-                graphConfig.put("graphWidth", graphData.getGraphWidth());
-                graphConfig.put("graphHeight", graphData.getGraphHeight());
-
-                graphConfig.put("yAxisMin", graph.getYAxisMin());
-                graphConfig.put("yAxisMax", graph.getYAxisMax());
-
-                // fix invalid JSON coming from GraphController
-                String dataSeriesJson = graph.getDataSeriesJSON()
-                        .replaceFirst("\\{", "")
-                                // remove trailing "}"
-                        .substring(0, graph.getDataSeriesJSON().length() - 2);
-
-                // read malformed JSON
-                ObjectMapper mapper = new ObjectMapper();
-                JsonFactory jsonFactory = mapper.getJsonFactory()
-                        .configure(Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
-                        .configure(Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
-                JsonParser jsonParser = jsonFactory.createJsonParser(dataSeriesJson);
-
-                // array of String -> Object maps
-                TypeReference<Map<String, Object>[]> dataSeriesType = new TypeReference<Map<String, Object>[]>() {
-                };
-
-                // write JSON as Map so that it can be serialized properly back to JSON
-                Map<String, Object>[] seriesMap = mapper.readValue(jsonParser, dataSeriesType);
-                graphConfig.put("dataSeriesJSON", seriesMap);
-
+               
                 if (includeDetails) {
-                    int totalPoints = 0;
-                    List<HashMap<String, Object>> details = new ArrayList<HashMap<String, Object>>();
-                    HashMap<String, Object> detail;
-                    for (int i = 0; i < allCounts.length; i++) {
-                        for (int j = 0; j < allCounts[i].length; j++) {
-                            totalPoints++;
-                            detail = new HashMap<String, Object>();
-                            detail.put("Date", dates[j]);
-                            detail.put("Series", lineSetLabels[i]);
-                            detail.put("Level", allLevels[i][j]);
-                            detail.put("Count", allCounts[i][j]);
-                            if (!ArrayUtils.isEmpty(allExpecteds[i])) {
-                                detail.put("Expected", allExpecteds[i][j]);
-                            }
-                            if (!ArrayUtils.isEmpty(allSwitchInfo[i])) {
-                                detail.put("Switch", allSwitchInfo[i][j]);
-                            }
-                            detail.put("Color", allColors[i][j]);
-                            details.add(detail);
-                        }
-                    }
-                    result.put("detailsTotalRows", totalPoints);
-                    result.put("details", details);
+                    TSHelper.addDetailsToResult (result, allCounts, dates, lineSetLabels,
+                            allLevels, allExpecteds, allSwitchInfo, allColors);
                 }
-                result.put("graphConfiguration", graphConfig);
+                
+                GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
+                GraphController gc = getGraphController(null, hndl, userPrincipalName);
+                //TODO figure out why I (hodancj1) added this to be accumulation size ~Feb 2012
+                // gc.setMaxLegendItems(accumulations.size());
+
+                TSHelper.addGraphConfigToResult(result, gc, graphData, graphTimeSeriesUrl, allCounts, graphExpected);
                 result.put("success", true);
             } else {
                 StringBuilder sb = new StringBuilder();
@@ -1651,6 +1835,19 @@ public class ReportController extends OeController {
         Collection<Record> points =
                 new DetailsQuery().performDetailsQuery(ds, results, accumulations, filters, sorts, false,
                                                        clientTimezone);
+        // Translate accumulation int to bool if renderIntToBool set to true
+        // if accumulation value is null ==> false else true
+        String renderIntToBool = request.getParameter("renderIntToBool");
+        if(renderIntToBool != null && renderIntToBool.equalsIgnoreCase("true")){
+            for (Record point : points) {
+                Map<String, Object> vals = point.getValues();
+                for(Dimension accum : accumulations){
+                    Object accumVal = vals.get(accum.getId());
+                    vals.put(accum.getId(), accumVal != null);
+                }
+            }
+        }
+        
         response.setContentType("text/csv;charset=utf-8");
 
         String filename =
@@ -1694,22 +1891,6 @@ public class ReportController extends OeController {
         }
 
         return sb.toString();
-    }
-
-    /**
-     * If the graph.font property is specified, append its value as a parameter to the given URL. Otherwise, do
-     * nothing.
-     *
-     * @return new URL
-     */
-    private String appendGraphFontParam(JdbcOeDataSource dataSource, String url) {
-        try {
-            String graphFont = messageSource.getDataSourceMessage("graph.font", dataSource);
-            return appendUrlParameter(url, "font", graphFont);
-        } catch (NoSuchMessageException e) {
-            log.debug("Property graph.font not found, using default");
-            return url;
-        }
     }
 
     /**
