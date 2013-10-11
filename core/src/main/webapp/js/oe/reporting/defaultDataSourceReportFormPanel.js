@@ -523,16 +523,10 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
 
         var grid = form.getComponent('groupByGrid');
         grid.on('afterrender', function () {
-        	if(me.results){
-	            Ext.each(me.results, function (dim) {
-	                var selectionModel = grid.getSelectionModel();
-	                selectionModel.selectRow(grid.store.find('dimensionId', dim), true);
-	            });
-        	}
-        	// OE-447: Pre-select all fields in Details group by
-        	else {
-        		grid.getSelectionModel().selectAll();
-        	}
+            Ext.each(me.results, function (dim) {
+                var selectionModel = grid.getSelectionModel();
+                selectionModel.selectRow(grid.store.find('dimensionId', dim), true);
+            });
         });
 
         var win = new Ext.Window({
