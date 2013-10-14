@@ -44,6 +44,6 @@ class ADiagnoses extends GroovyDataSource {
                 metaData: [grid: [width: 100]]])
 
         setDimensions(dimensionBeans)
-        setBaseDetailsQuery('diagnoses')
+        setBaseDetailsQuery('(select * from diagnoses order by order_id) as diagnoses')
     }
 }
