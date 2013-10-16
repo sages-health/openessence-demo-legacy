@@ -105,18 +105,20 @@ class DataCaseReport extends GroovyDataSource {
         d.possibleValuesDsResults = ['TempGroupId', 'TemperatureGroup', 'Order']
 
         // used for grouping queries
-        d = init([id: 'SymptomName', sqlCol: "COALESCE(sym10.name, 'No Diagnoses'::text) AS sym10name",
-                sqlColAlias: 'sym10name', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-                metaData: [form: [xtype: 'hidden', sortcolumn: 'Order'], grid: [width: 100]]])
-        d.possibleValuesDsName = 'Symptoms'
-        d.possibleValuesDsResults = ['NameId', 'Name', 'Order']
+        init([id: 'Symptom10Id', sqlCol: 'sym10.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+              metaData: [ grid: [ hidden: true ], form: [ xtype: 'hidden' ] ] ] as HashMap)
+
+        init([id: 'SymptomName', sqlCol: "COALESCE(sym10.name, 'No Symptoms'::text) AS sym10name",
+              sqlColAlias: 'sym10name', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'Symptom10Id',
+              metaData: [ grid: [ width: 100 ] ] ])
 
         // used for grouping queries
-        d = init([id: 'DiagnosisName', sqlCol: "COALESCE(d10.name, 'No Diagnoses'::text) AS d10name",
-                sqlColAlias: 'd10name', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
-                metaData: [form: [xtype: 'hidden'], grid: [width: 100]]])
-        d.possibleValuesDsName = 'Diagnoses'
-        d.possibleValuesDsResults = ['NameId', 'Name', 'Order']
+        init([id: 'Diagnosis10Id', sqlCol: 'd10.id', sqlType: FieldType.INTEGER, isResult: false, isFilter: true,
+              metaData: [ grid: [ hidden: true ], form: [ xtype: 'hidden' ] ] ] as HashMap)
+
+        init([id: 'DiagnosisName', sqlCol: "COALESCE(d10.name, 'No Diagnoses'::text) AS d10name",
+              sqlColAlias: 'd10name', sqlType: FieldType.TEXT, isResult: true, isFilter: false, filterBeanId: 'Diagnosis10Id',
+              metaData: [ grid: [ width: 100 ] ] ])
 
         init([id: 'AllSymptoms', sqlCol: 'allsymptoms', sqlType: FieldType.TEXT, isResult: true, isFilter: true,
                 metaData: [form: [xtype: 'hidden'], grid: [width: 200]]])
