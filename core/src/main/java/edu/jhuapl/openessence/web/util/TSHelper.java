@@ -25,7 +25,9 @@
  */
 package edu.jhuapl.openessence.web.util;
 
-import edu.jhuapl.graphs.controller.DefaultGraphData;
+import edu.jhuapl.bsp.detector.DetectorHelper;
+import edu.jhuapl.bsp.detector.TemporalDetectorInterface;
+import edu.jhuapl.bsp.detector.TemporalDetectorSimpleDataObject;
 import edu.jhuapl.graphs.controller.GraphController;
 import edu.jhuapl.graphs.controller.GraphDataInterface;
 import edu.jhuapl.graphs.controller.GraphObject;
@@ -33,7 +35,8 @@ import edu.jhuapl.openessence.controller.ReportController;
 import edu.jhuapl.openessence.datasource.Dimension;
 import edu.jhuapl.openessence.datasource.FieldType;
 import edu.jhuapl.openessence.datasource.Filter;
-import edu.jhuapl.openessence.datasource.OeDataSourceException;
+import edu.jhuapl.openessence.datasource.dataseries.AccumPoint;
+import edu.jhuapl.openessence.datasource.dataseries.DataSeriesSource;
 import edu.jhuapl.openessence.datasource.dataseries.GroupingDimension;
 import edu.jhuapl.openessence.datasource.jdbc.JdbcOeDataSource;
 import edu.jhuapl.openessence.datasource.jdbc.filter.OneArgOpFilter;
@@ -54,10 +57,11 @@ import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.NoSuchMessageException;
+import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.WebRequest;
 
-import java.awt.Color;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,6 +76,7 @@ import java.util.TimeZone;
 /**
  * This class provides helper methods for creating time series (used by ReportController)
  */
+@Service
 public class TSHelper {
 
     private static final Logger log = LoggerFactory.getLogger(TSHelper.class);
@@ -91,64 +96,13 @@ public class TSHelper {
     }
 
     /**
-     * Extract time resolution for the time series
-     * 
-     * @param model TimeSeriesModel object
-     * @param groupingDim GroupingDimension object
-     * @param groupId String group ID
-     * @return time resolution as a String
-     */
-    public static String getResolution(TimeSeriesModel model, GroupingDimension groupingDim, String groupId) {
-        String resolution = "";
-
-        if (model.getTimeseriesGroupResolution() != null) {
-            String[] parts = model.getTimeseriesGroupResolution().split(":");
-            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
-                resolution = parts[1];
-            }
-        }
-
-        // find resolution handlers as appropriate for groupings
-        if (resolution == null || "".equals(groupId)) {
-            String[] res = groupingDim.getResolutions().toArray(new String[groupingDim.getResolutions().size()]);
-            if (res.length > 0) {
-                resolution = res[0];
-            }
-        }
-
-        return resolution;
-    }
-
-    /**
-     * Extracts group ID from TimeSeriesModel object
-     * 
-     * @param model TimeSeriesModel object
-     * @return group ID as a String
-     */
-    public static String getGroupId(TimeSeriesModel model) {
-        String groupId = "";
-
-        if (model.getTimeseriesGroupResolution() != null) {
-            String[] parts = model.getTimeseriesGroupResolution().split(":");
-            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
-                groupId = parts[0];
-            }
-        }
-
-        if (groupId == null || groupId.isEmpty()) {
-            throw new OeDataSourceException("No Grouping Dimension ID specified");
-        }
-        return groupId;
-    }
-
-    /**
      * Extract timezone offset from the request and return it as hours minutes string
      * 
      * @param request WebRequest object
      * @param messageSource InspectableResourceBundleMessageSource object
      * @return timezone offset as as hours minutes string
      */
-    public static String getClientTimezone(WebRequest request, InspectableResourceBundleMessageSource messageSource) {
+    public String getClientTimezone(WebRequest request, InspectableResourceBundleMessageSource messageSource) {
         String clientTimezone = null;
         String timezoneEnabledString = messageSource.getMessage(TIMEZONE_ENABLED, "false");
         if (timezoneEnabledString.equalsIgnoreCase("true")) {
@@ -166,10 +120,10 @@ public class TSHelper {
      * @param messageSource InspectableResourceBundleMessageSource object
      * @return graph time series url as a String
      */
-    public static String buildTimeSeriesURL(JdbcOeDataSource ds, String contextPath, String servletPath,
+    public String buildTimeSeriesURL(JdbcOeDataSource ds, String contextPath, String servletPath,
             InspectableResourceBundleMessageSource messageSource) {
         String graphTimeSeriesUrl = contextPath + servletPath + "/report/graphTimeSeries";
-        graphTimeSeriesUrl = TSHelper.appendGraphFontParam(ds, graphTimeSeriesUrl, messageSource);
+        graphTimeSeriesUrl = appendGraphFontParam(ds, graphTimeSeriesUrl, messageSource);
         return graphTimeSeriesUrl;
     }
 
@@ -181,7 +135,7 @@ public class TSHelper {
      * @param value value of the parameter
      * @return new url as a String
      */
-    public static String appendUrlParameter(String url, String param, String value) {
+    public String appendUrlParameter(String url, String param, String value) {
         StringBuilder sb = new StringBuilder(url);
         URLCodec codec = new URLCodec();
 
@@ -204,40 +158,15 @@ public class TSHelper {
      * @param messageSource InspectableResourceBundleMessageSource object
      * @return new URL as a String
      */
-    public static String appendGraphFontParam(JdbcOeDataSource dataSource, String url,
+    public String appendGraphFontParam(JdbcOeDataSource dataSource, String url,
             InspectableResourceBundleMessageSource messageSource) {
         try {
             String graphFont = messageSource.getDataSourceMessage("graph.font", dataSource);
-            return TSHelper.appendUrlParameter(url, "font", graphFont);
+            return appendUrlParameter(url, "font", graphFont);
         } catch (NoSuchMessageException e) {
             log.debug("Property graph.font not found, using default");
             return url;
         }
-    }
-
-    /**
-     * Builds graph data object using given time series model information
-     * 
-     * @param model TimeSeriesModel object
-     * @return DefaultGraphData object
-     */
-    public static DefaultGraphData buildGraphData(TimeSeriesModel model) {
-
-        // create graph data and set known configuration
-        DefaultGraphData graphData = new DefaultGraphData();
-        graphData.setShowSingleSeverityLegends(false);
-        graphData.setGraphTitle(model.getTimeseriesTitle());
-        graphData.setGraphWidth(model.getWidth());
-        graphData.setGraphHeight(model.getHeight());
-        graphData.setShowLegend(true);
-        graphData.setBackgroundColor(new Color(255, 255, 255, 0));
-
-        // only set an array if they provided one
-        if (model.getGraphBaseColors() != null && model.getGraphBaseColors().length > 0) {
-            // TODO leverage Spring to convert colors
-            graphData.setGraphBaseColors(ControllerUtils.getColorsFromHex(Color.BLACK, model.getGraphBaseColors()));
-        }
-        return graphData;
     }
 
     /**
@@ -248,7 +177,7 @@ public class TSHelper {
      * @param isEpiWeekEnabled if we are using EPI week calculation
      * @return year start date as a Date object
      */
-    public static Date calculateStartDate(int year, String resolution, boolean isEpiWeekEnabled) {
+    public Date calculateStartDate(int year, String resolution, boolean isEpiWeekEnabled) {
         Calendar cal = Calendar.getInstance();
         cal.set(year, Calendar.JANUARY, 1, 0, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
@@ -282,7 +211,7 @@ public class TSHelper {
      * @param isEpiWeekEnabled if we are using EPI week calculation
      * @return year end date as a Date object
      */
-    public static Date calculateEndDate(int year, String resolution, boolean isEpiWeekEnabled) {
+    public Date calculateEndDate(int year, String resolution, boolean isEpiWeekEnabled) {
         Calendar cal = Calendar.getInstance();
         cal.set(year, Calendar.DECEMBER, 31, 0, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
@@ -318,14 +247,14 @@ public class TSHelper {
      * @param isEpiWeekEnabled if EPI week calculation being used
      * @return updated parameter map
      */
-    public static Map<String, String[]> fixStartEndDatesForYearAsSeries(Map<String, String[]> params,
-            Dimension accumulation, String groupId, String resolution, boolean isEpiWeekEnabled) {
+    public Map<String, String[]> fixStartEndDatesForYearAsSeries(Map<String, String[]> params, Dimension accumulation,
+            String groupId, String resolution, boolean isEpiWeekEnabled) {
         Map<String, String[]> updatedParams = new HashMap<String, String[]>(params);
 
         try {
             int year = Integer.parseInt(accumulation.getId());
-            Date startDate = TSHelper.calculateStartDate(year, resolution, isEpiWeekEnabled);
-            Date endDate = TSHelper.calculateEndDate(year, resolution, isEpiWeekEnabled);
+            Date startDate = calculateStartDate(year, resolution, isEpiWeekEnabled);
+            Date endDate = calculateEndDate(year, resolution, isEpiWeekEnabled);
             log.info("StartDate: " + startDate);
             log.info("EndDate: " + endDate);
             // replace/add start and end dates
@@ -344,7 +273,7 @@ public class TSHelper {
      * @param filters query filters as a list
      * @return start and end dates as a Pair
      */
-    public static Pair<Date, Date> getStartEndDates(GroupingDimension grpdim, List<Filter> filters) {
+    public Pair<Date, Date> getStartEndDates(GroupingDimension grpdim, List<Filter> filters) {
         Date startDate = null;
         Date endDate = null;
 
@@ -371,8 +300,7 @@ public class TSHelper {
      * @param clientTimezone TimeZone object
      * @return int time zone offset as milliseconds
      */
-    public static int getTimezoneOffsetMillies(InspectableResourceBundleMessageSource messageSource,
-            TimeZone clientTimezone) {
+    public int getTimezoneOffsetMillies(InspectableResourceBundleMessageSource messageSource, TimeZone clientTimezone) {
         int timeOffsetMillies = 0;
         String timezoneEnabledString = messageSource.getMessage(TIMEZONE_ENABLED, "false");
         if (timezoneEnabledString.equalsIgnoreCase("true")) {
@@ -391,7 +319,7 @@ public class TSHelper {
      * @param prepull number of days to prepull for daily series and number of weeks to prepull for weekly series
      * @return start date as a Date object
      */
-    public static Date getQueryStartDate(Calendar cal, String timeResolution, int prepull) {
+    public Date getQueryStartDate(Calendar cal, String timeResolution, int prepull) {
         Calendar startCal = new GregorianCalendar();
         startCal.setTime(cal.getTime());
         // offset start date to match prepull offset
@@ -414,7 +342,7 @@ public class TSHelper {
      * @param jsCall Initial javascript StringBuilder object to which we will append date params
      * @return Updated javascript call as String
      */
-    public static String buildDetailsURL(String dateFieldName, String timeResolution, TimeZone clientTimezone, Date dt,
+    public String buildDetailsURL(String dateFieldName, String timeResolution, TimeZone clientTimezone, Date dt,
             int startDay, StringBuilder jsCall) {
         // build the click through url
         StringBuilder tmp = new StringBuilder(jsCall.toString());
@@ -463,36 +391,28 @@ public class TSHelper {
      * Adds data details table information to the result map
      * 
      * @param result Map that holds results
-     * @param allCounts counts as double 2D array
-     * @param dates dates as String array
-     * @param lineSetLabels lineset labels as String array
-     * @param allLevels levels as 2D double array
-     * @param allExpecteds expected values as 2D double array
-     * @param allSwitchInfo switch info as 2D String array
-     * @param allColors colors as 2D int array
+     * @param gdBuilder GraphDataBuilder object
      */
-    public static void addDetailsToResult(Map<String, Object> result, double[][] allCounts, String[] dates,
-            String[] lineSetLabels, double[][] allLevels, double[][] allExpecteds, String[][] allSwitchInfo,
-            int[][] allColors) {
+    public void addDetailsToResult(Map<String, Object> result, GraphDataBuilder gdBuilder) {
         int totalPoints = 0;
         List<HashMap<String, Object>> details = new ArrayList<HashMap<String, Object>>();
         HashMap<String, Object> detail;
-        for (int i = 0; i < allCounts.length; i++) {
-            if (allCounts[i] != null) {
-                for (int j = 0; j < allCounts[i].length; j++) {
+        for (int i = 0; i < gdBuilder.getAllCounts().length; i++) {
+            if (gdBuilder.getAllCounts()[i] != null) {
+                for (int j = 0; j < gdBuilder.getAllCounts()[i].length; j++) {
                     totalPoints++;
                     detail = new HashMap<String, Object>();
-                    detail.put("Date", dates[j]);
-                    detail.put("Series", lineSetLabels[i]);
-                    detail.put("Level", allLevels[i][j]);
-                    detail.put("Count", allCounts[i][j]);
-                    if (!ArrayUtils.isEmpty(allExpecteds[i])) {
-                        detail.put("Expected", allExpecteds[i][j]);
+                    detail.put("Date", gdBuilder.getxAxisLables()[j]);
+                    detail.put("Series", gdBuilder.getLineSetLabels()[i]);
+                    detail.put("Level", gdBuilder.getAllLevels()[i][j]);
+                    detail.put("Count", gdBuilder.getAllCounts()[i][j]);
+                    if (!ArrayUtils.isEmpty(gdBuilder.getAllExpecteds()[i])) {
+                        detail.put("Expected", gdBuilder.getAllExpecteds()[i][j]);
                     }
-                    if (!ArrayUtils.isEmpty(allSwitchInfo[i])) {
-                        detail.put("Switch", allSwitchInfo[i][j]);
+                    if (!ArrayUtils.isEmpty(gdBuilder.getAllSwitchInfo()[i])) {
+                        detail.put("Switch", gdBuilder.getAllSwitchInfo()[i][j]);
                     }
-                    detail.put("Color", allColors[i][j]);
+                    detail.put("Color", gdBuilder.getAllColors()[i][j]);
                     details.add(detail);
                 }
             }
@@ -501,7 +421,7 @@ public class TSHelper {
         result.put("details", details);
     }
 
-    public static final void addGraphConfigToResult(Map<String, Object> result, GraphController gc,
+    public final void addGraphConfigToResult(Map<String, Object> result, GraphController gc,
             GraphDataInterface graphData, String graphTimeSeriesUrl, double[][] allCounts, boolean graphExpected)
             throws JsonParseException, IOException {
 
@@ -552,123 +472,192 @@ public class TSHelper {
     }
 
     /**
-     * Provided series counts two dimension array, find out number of points in the longest series
+     * Takes a List of SeriesPoints and generates a double array that holds the value of each SeriesPoint
      * 
-     * @param allCounts counts for the time series
-     * @return number of data elements in the longest series
+     * @param seriespoints - List<AccumPoint> whose values need to be extracted into a double[] for detectors
+     * @param dimId - The dimension id to pull from each AccumPoint
+     * @param divisors
+     * @param multiplier
+     * @return pointarray - double[] that holds all the values from the passed in list of SeriesPoint
      */
-    public static int findMaxDataLength(double[][] allCounts) {
-        int maxLen = 0;
-        for (double[] count : allCounts) {
-            maxLen = (maxLen < count.length) ? count.length : maxLen;
+    public double[] generateSeriesValues(List<AccumPoint> seriespoints, String dimId, double[] divisors,
+            double multiplier) {
+        // List<Number> pointlist = new ArrayList<Number>();
+        double[] pointarray = new double[seriespoints.size()];
+        int ix = 0;
+        for (AccumPoint point : seriespoints) {
+            // pointlist.add(point.getValue());
+            if (point != null && point.getValue(dimId) != null) {
+                pointarray[ix] = point.getValue(dimId).doubleValue();
+            } else {
+                pointarray[ix] = Double.NaN;
+            }
+            ix++;
         }
-        return maxLen;
-    }
 
-    /**
-     * Appends default value if one or more series is shorter than given length
-     * 
-     * @param dataArray two dimensional double array
-     * @param length integer length
-     * @param defaultVal default value to be used for elements if series is shorter than given length
-     * @return updated data array
-     */
-    public static double[][] updateDoubleArray(double[][] dataArray, int length, double defaultVal) {
-        for (int i = 0; i < dataArray.length; i++) {
-            if (dataArray[i].length == 0) {
-                dataArray[i] = new double[length];
-                Arrays.fill(dataArray[i], 0, length - 1, defaultVal);
-            } else if (dataArray[i].length < length) {
-                double[] tmp = dataArray[i];
-                dataArray[i] = new double[length];
-                System.arraycopy(tmp, 0, dataArray[i], 0, tmp.length);
-                Arrays.fill(dataArray[i], tmp.length - 1, length - 1, defaultVal);
+        // run divisor before detection
+        for (int i = 0; i < pointarray.length; i++) {
+            double div = divisors[i];
+            if (div == 0) {
+                pointarray[i] = 0.0;
+            } else {
+                pointarray[i] = (pointarray[i] / div) * multiplier;
             }
         }
-        return dataArray;
+        return pointarray;
     }
 
-    /**
-     * Appends default value if one or more series is shorter than given length
-     * 
-     * @param dataArray two dimensional int array
-     * @param length integer length
-     * @param defaultVal default value to be used for elements if series is shorter than given length
-     * @return updated data array
-     */
-    public static int[][] updateIntArray(int[][] dataArray, int length, int defaultVal) {
-        for (int i = 0; i < dataArray.length; i++) {
-            if (dataArray[i].length == 0) {
-                dataArray[i] = new int[length];
-                Arrays.fill(dataArray[i], 0, length - 1, defaultVal);
-            } else if (dataArray[i].length < length) {
-                int[] tmp = dataArray[i];
-                dataArray[i] = new int[length];
-                System.arraycopy(tmp, 0, dataArray[i], 0, tmp.length);
-                Arrays.fill(dataArray[i], tmp.length - 1, length - 1, defaultVal);
+    public TemporalDetectorSimpleDataObject runDetection(Calendar startDayCal, Pair<Date, Date> startEndDatePair,
+            double[] seriesDoubleArray, TimeSeriesModel model, String timeResolution) {
+        // for yearly series, prepull is 0. Thus, queryStartDate is same as start date
+        Date queryStartDate = getQueryStartDate(startDayCal, timeResolution, model.getPrepull());
+
+        TemporalDetectorInterface TDI =
+                (TemporalDetectorInterface) DetectorHelper.createObject(model.getTimeseriesDetectorClass());
+        TemporalDetectorSimpleDataObject TDDO = new TemporalDetectorSimpleDataObject();
+
+        // run detection
+        TDDO.setCounts(seriesDoubleArray);
+        TDDO.setStartDate(startEndDatePair.getFirst());
+        TDDO.setTimeResolution(timeResolution);
+
+        TDI.runDetector(TDDO);
+
+        TDDO.cropStartup(model.getPrepull());
+
+        if (!ReportController.DAILY.equalsIgnoreCase(timeResolution)) {
+            // toggle between start date and end date
+            // TDDO.setDates(getOurDates(startDate, endDate, tddoLength, timeResolution));
+            TDDO.setDates(getOurDates(queryStartDate, startEndDatePair.getSecond(), TDDO.getCounts().length,
+                    timeResolution, model.isDisplayIntervalEndDate()));
+        }
+        return TDDO;
+    }
+
+    // Original code taken from TemporalDetectorSimpleDataObserver.setupDates and reworked to better handle months
+    private Date[] getOurDates(Date queryStartDate, Date endDate, int size, String timeResolution,
+            boolean displayIntervalEndDate) {
+        Date startDate = queryStartDate;
+        if (displayIntervalEndDate) {
+            startDate = computeResolutionBasedEndDate(queryStartDate, timeResolution, endDate);
+        }
+
+        Date[] dates = new Date[size];
+
+        String tr = timeResolution;
+        if (tr == null) {
+            tr = ReportController.DAILY;
+        }
+        int zeroFillInterval =
+                ReportController.intervalMap.keySet().contains(timeResolution) ? ReportController.intervalMap
+                        .get(timeResolution) : -1;
+        if (startDate != null && size >= 0) {
+            Calendar cal = new GregorianCalendar();
+            // forward point allows us to place the accumulated data at the front
+            int i = 0;
+            for (i = 0; i < size; i++) {
+                // reset date to avoid unexpected date changes
+                cal.setTime(startDate);
+                cal.add(zeroFillInterval, 1 * i);
+                if (endDate != null && cal.getTime().after(endDate)) {
+                    cal.setTime(endDate);
+                }
+                // store date after interval addition
+                dates[i] = cal.getTime();
             }
         }
-        return dataArray;
+        return dates;
     }
 
     /**
-     * Appends default value if one or more series is shorter than given length
+     * Compute end date based on time resolution. Defaults to the original date unless the resolution is weekly, monthly
+     * or yearly in which case it is padded accordingly.
      * 
-     * @param dataArray two dimensional String array
-     * @param length integer length
-     * @param defaultVal default value to be used for elements if series is shorter than given length
-     * @return updated data array
+     * @param maxDate optionally used to keep the computed date below a maxDate (end date for the query for example)
+     * @return Date
      */
-    public static String[][] updateStringArray(String[][] dataArray, int length, String defaultVal) {
-        for (int i = 0; i < dataArray.length; i++) {
-            if (dataArray[i].length == 0) {
-                dataArray[i] = new String[length];
-                Arrays.fill(dataArray[i], 0, length - 1, defaultVal);
-            } else if (dataArray[i].length < length) {
-                String[] tmp = dataArray[i];
-                dataArray[i] = new String[length];
-                System.arraycopy(tmp, 0, dataArray[i], 0, tmp.length);
-                Arrays.fill(dataArray[i], tmp.length - 1, length - 1, defaultVal);
+    private Date computeResolutionBasedEndDate(Date startDate, String timeResolution, Date maxDate) {
+        Calendar cal = new GregorianCalendar();
+        cal.setTime(startDate);
+        if (ReportController.WEEKLY.equalsIgnoreCase(timeResolution)) {
+            cal.add(Calendar.WEEK_OF_YEAR, 1);
+            cal.add(Calendar.DATE, -1);
+        } else if (ReportController.MONTHLY.equalsIgnoreCase(timeResolution)) {
+            cal.add(Calendar.MONTH, 1);
+            cal.add(Calendar.DATE, -1);
+        } else if (ReportController.YEARLY.equalsIgnoreCase(timeResolution)) {
+            cal.add(Calendar.YEAR, 1);
+            cal.add(Calendar.DATE, -1);
+        } else {
+            // do nothing for daily currently
+        }
+        // we want the end date/label to not exceed the query end date
+        if (maxDate != null && cal.getTime().after(maxDate)) {
+            cal.setTime(maxDate);
+        }
+        return cal.getTime();
+    }
+
+    public Map<String, Object> setDetectionErrorMessage(Exception e) {
+        Map<String, Object> result = new HashMap<String, Object>();
+        String errorMessage = "Failure to create Timeseries";
+        if (e.getMessage() != null) {
+            errorMessage = errorMessage + ":<BR>" + e.getMessage();
+        }
+        result.put("message", errorMessage);
+        result.put("success", false);
+        return result;
+    }
+
+    /**
+     * Takes a List of AccumPoints and generates a double array that holds the total of accumulations
+     * 
+     * @param points - List<AccumPoint> whose values need to be extracted into a double[] for detectors
+     * @param dimensions - The list of dimensions to sum from each AccumPoint
+     * @return double[] that holds all the values from the passed in list of SeriesPoint
+     */
+    private double[] totalSeriesValues(List<AccumPoint> points, List<Dimension> dimensions) {
+        double[] totalArray = new double[points.size()];
+        int i = 0;
+        for (AccumPoint point : points) {
+            if (point != null) {
+                for (Dimension dim : dimensions) {
+                    Number value = point.getValue(dim.getId());
+                    if (value != null) {
+                        totalArray[i] = totalArray[i] + value.doubleValue();
+                    }
+                }
+            } else {
+                totalArray[i] = Double.NaN;
             }
+            i++;
         }
-        return dataArray;
+        return totalArray;
     }
 
-    /**
-     * Appends default label value if the label array is not long enough
-     * 
-     * @param xAxisLabels labels for the X axis
-     * @param length expected length for x axis labels array
-     * @param defaultVal default value for the data points we are appending to the label array
-     * @return updated x axis array
-     */
-    public static String[] updateXAxisLabels(String[] xAxisLabels, int length, String defaultVal) {
-        if (xAxisLabels.length == 0) {
-            xAxisLabels = new String[length];
-            Arrays.fill(xAxisLabels, 0, length - 1, defaultVal);
-        } else if (xAxisLabels.length < length) {
-            String[] tmp = xAxisLabels;
-            xAxisLabels = new String[length];
-            System.arraycopy(tmp, 0, xAxisLabels, 0, tmp.length);
-            Arrays.fill(xAxisLabels, tmp.length - 1, length - 1, defaultVal);
-        }
-        return xAxisLabels;
-    }
+    public double[] getDivisors(List<AccumPoint> points, List<Dimension> timeseriesDenominators) {
+        // -- Handles Denominator Types -- //
+        double[] divisors = new double[points.size()];
 
-    /**
-     * For time series X axis labels, pick the one having max data lenght
-     * 
-     * @param labels label arrays
-     * @param maxDataLength number of data points on the longest series
-     * @return x axis labels as a String array
-     */
-    public static String[] getXAxisLabels(String[][] labels, int maxDataLength) {
-        for (String[] labelsArray : labels) {
-            if (labelsArray.length == maxDataLength) {
-                return labelsArray;
-            }
+        // if there is a denominator we need to further manipulate the data
+        if (timeseriesDenominators != null && !timeseriesDenominators.isEmpty()) {
+            // divisor is the sum of timeseriesDenominators
+            divisors = totalSeriesValues(points, timeseriesDenominators);
+        } else {
+            // the query is for total counts
+            Arrays.fill(divisors, 1.0);
         }
-        return new String[0];
+        return divisors;
+    }
+    
+    public Map<String, Object> buildNoDataResult(DataSeriesSource dss, InspectableResourceBundleMessageSource messageSource){
+        Map<String, Object> result = new HashMap<String, Object>();
+        StringBuilder sb = new StringBuilder();
+        sb.append("<h2>" + messageSource.getDataSourceMessage("graph.nodataline1", dss) + "</h2>");
+        sb.append("<p>" + messageSource.getDataSourceMessage("graph.nodataline2", dss) + "</p>");
+        result.put("html", sb.toString());
+        result.put("success", true);
+        return result;
     }
 
 }

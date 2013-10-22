@@ -95,8 +95,7 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
                         }
                     });
 
-                    me.showTimeSeriesParamatersForm({accumulations: accumulations,
-                        yearAsSeries : yearAsSeries});
+                    me.showTimeSeriesParamatersForm({accumulations: accumulations, yearAsSeries : yearAsSeries});
                 },
                 scope: configuration
             });
