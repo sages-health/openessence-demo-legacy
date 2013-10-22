@@ -44,6 +44,6 @@ class ASymptoms extends GroovyDataSource {
                 metaData: [grid: [width: 100]]])
 
         setDimensions(dimensionBeans)
-        setBaseDetailsQuery('symptoms')
+        setBaseDetailsQuery('(select * from symptoms order by order_id) as symptoms')
     }
 }
