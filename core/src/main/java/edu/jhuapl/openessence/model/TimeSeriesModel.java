@@ -45,6 +45,8 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
     private int prepull;
     private String xAxisLabel;
     private String yAxisLabel;
+    private Double yAxisMin;
+    private Double yAxisMax;
     
     public TimeSeriesModel() {
         timeseriesTitle = "";
@@ -54,6 +56,10 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
         width = 900;
         height = 425;
         prepull = -1;
+        xAxisLabel = "";
+        yAxisLabel = "";
+        yAxisMin = null;
+        yAxisMax = null;
     }
 
     public String getTimeseriesTitle() {
@@ -166,5 +172,21 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
 
     public void setYAxisLabel(String yAxisLabel) {
         this.yAxisLabel = yAxisLabel;
+    }
+
+    public Double getYAxisMin() {
+        return yAxisMin;
+    }
+
+    public void setYAxisMin(Double yAxisMin) {
+        this.yAxisMin = yAxisMin;
+    }
+
+    public Double getYAxisMax() {
+        return yAxisMax;
+    }
+
+    public void setYAxisMax(Double yAxisMax) {
+        this.yAxisMax = yAxisMax;
     }
 }

@@ -71,6 +71,7 @@ OE.GraphPanel = Ext.extend(Ext.Panel, { // TODO extend OE.DiagramPanel, refactor
 	        	yAxisMin: graphConfig.yAxisMin
 	        });
         }
+        
         OE.data.doAjaxRestricted({
             url: this.url,
             method: 'GET',
