@@ -110,6 +110,13 @@ OE.Chart = Ext.extend(Ext.Panel, { // TODO refactor with Graph version, have gen
                     items: [
                         {
                             xtype: "textfield",
+                            id: "title",
+                            name: "title",
+                            hidden: true,
+                            value: this.title
+                        },
+                        {
+                            xtype: "textfield",
                             id: "getHighResFile",
                             name: "getHighResFile",
                             hidden: true,
@@ -128,12 +135,9 @@ OE.Chart = Ext.extend(Ext.Panel, { // TODO refactor with Graph version, have gen
                             fieldLabel: messagesBundle['graph.resolution'] || "Resolution (dpi)",
                             columns: 3,
                             items: [
-                                { name: "resolution", inputValue: "100", boxLabel: '100', checked: true},
-                                { name: "resolution", inputValue: "150", boxLabel: '150'},
-                                { name: "resolution", inputValue: "200", boxLabel: '200'},
-                                { name: "resolution", inputValue: "250", boxLabel: '250'},
+                                { name: "resolution", inputValue: "200", boxLabel: '200', checked: true},
                                 { name: "resolution", inputValue: "300", boxLabel: '300'},
-                                { name: "resolution", inputValue: "350", boxLabel: '350'}
+                                { name: "resolution", inputValue: "400", boxLabel: '400'}
                             ]
                         }
                     ],
@@ -153,7 +157,6 @@ OE.Chart = Ext.extend(Ext.Panel, { // TODO refactor with Graph version, have gen
                                 // blank window
                                 domForm.action = this.imageUrl;
                                 domForm.submit();
-
                                 downloadWindow.close();
                             }
                         },
