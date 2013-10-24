@@ -1313,45 +1313,41 @@ public class ReportController extends OeController {
     }
 
     @RequestMapping("/graphBar")
-    public void graphBar(HttpServletRequest req, HttpServletResponse resp,
-                         @RequestParam("graphDataId") String dataId,
-                         @RequestParam(required = false) Integer resolution) throws GraphException, IOException {
-        GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
-        GraphController gc = getGraphController(dataId, hndl, req.getUserPrincipal().getName());
-
-        GraphDataInterface data = hndl.getGraphData(dataId);
-        GraphObject graph = gc.createBarGraph(data, false);
-        String filename = graph.getImageFileName();
-        filename = filename.replaceAll("\\s", "_");
-        resp.setContentType("image/png;charset=utf-8");
-        resp.setHeader("Content-disposition", "attachment; filename=" + filename);
-
-        OutputStream out = resp.getOutputStream();
-        // why can't the graph module handle this?
-        if (resolution == null) {
-            graph.writeChartAsPNG(out, data.getGraphWidth(), data.getGraphHeight());
-        } else {
-            graph.writeChartAsHighResolutionPNG(out, data.getGraphWidth(), data.getGraphHeight(), resolution);
-        }
-
+    public void graphBar(HttpServletRequest req, HttpServletResponse resp, @RequestParam("graphDataId") String dataId,
+            @RequestParam(required = false) String title, @RequestParam(required = false) Integer resolution)
+            throws GraphException, IOException {
+        graphChart(req, resp, dataId, title, resolution, "bar");
     }
 
     @RequestMapping("/graphPie")
-    public void graphPie(HttpServletRequest req, HttpServletResponse resp,
-                         @RequestParam("graphDataId") String dataId,
-                         @RequestParam(required = false) Integer resolution) throws GraphException, IOException {
+    public void graphPie(HttpServletRequest req, HttpServletResponse resp, @RequestParam("graphDataId") String dataId,
+            @RequestParam(required = false) String title, @RequestParam(required = false) Integer resolution)
+            throws GraphException, IOException {
+        graphChart(req, resp, dataId, title, resolution, "pie");
+    }
 
+    public void graphChart(HttpServletRequest req, HttpServletResponse resp, String dataId, String title,
+            Integer resolution, String chartType) throws GraphException, IOException {
         GraphDataSerializeToDiskHandler hndl = new GraphDataSerializeToDiskHandler(graphDir);
         GraphController gc = getGraphController(dataId, hndl, req.getUserPrincipal().getName());
 
         GraphDataInterface data = hndl.getGraphData(dataId);
-        GraphObject graph = gc.createPieGraph(data);
+        if (title != null) {
+            data.setGraphTitle(title);
+        }
+
+        GraphObject graph;
+        if (chartType.equals("pie")) {
+            graph = gc.createPieGraph(data);
+        } else {
+            graph = gc.createBarGraph(data, false);
+        }
         String filename = graph.getImageFileName();
         filename = filename.replaceAll("\\s", "_");
         resp.setContentType("image/png;charset=utf-8");
         resp.setHeader("Content-disposition", "attachment; filename=" + filename);
-
         OutputStream out = resp.getOutputStream();
+
         // why can't the graph module handle this?
         if (resolution == null) {
             graph.writeChartAsPNG(out, data.getGraphWidth(), data.getGraphHeight());
@@ -1359,7 +1355,7 @@ public class ReportController extends OeController {
             graph.writeChartAsHighResolutionPNG(out, data.getGraphWidth(), data.getGraphHeight(), resolution);
         }
     }
-
+    
     @RequestMapping("/detailsQuery")
     public
     @ResponseBody
