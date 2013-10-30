@@ -100,8 +100,15 @@ OE.report.datasource.panel = function (configuration) {
             var pivotEl = $('#' + ctId);
             var pivot = pivotEl.pivotUI(response.rows, {
                 rows: pivotParams.rows,
-                cols: pivotParams.cols
+                cols: pivotParams.cols,
+                vals: pivotParams.vals
             });
+            if (pivotParams.renderer) {
+            	pivotEl.find("#renderer").val(pivotParams.renderer).trigger("change");
+            }
+            if (pivotParams.aggregator) {
+            	pivotEl.find("#aggregator").val(pivotParams.aggregator).trigger("change");	
+            }
             pivotEl.parent().css('overflow', 'auto');
 
             // add export button
@@ -321,7 +328,10 @@ OE.report.datasource.panel = function (configuration) {
                                                 };
                                                 var pivot = $('#' + tab.parameters.pivotId);
                                                 return {
-                                                    rows: extractId(pivot.find('#rows li')),
+                                                	renderer: pivot.find('#renderer').val(),
+                                                	aggregator: pivot.find('#aggregator').val(),
+                                                	vals: extractId(pivot.find('#vals li')),
+                                                	rows: extractId(pivot.find('#rows li')),
                                                     cols: extractId(pivot.find('#cols li'))
                                                 }
                                             })()
