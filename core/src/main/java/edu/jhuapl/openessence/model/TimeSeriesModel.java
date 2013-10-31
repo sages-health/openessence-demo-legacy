@@ -27,6 +27,12 @@
 package edu.jhuapl.openessence.model;
 
 import edu.jhuapl.bsp.detector.temporal.epa.NoDetectorDetector;
+import edu.jhuapl.graphs.controller.DefaultGraphData;
+import edu.jhuapl.openessence.datasource.OeDataSourceException;
+import edu.jhuapl.openessence.datasource.dataseries.GroupingDimension;
+import edu.jhuapl.openessence.web.util.ControllerUtils;
+
+import java.awt.Color;
 
 
 public class TimeSeriesModel { // TODO refactor with ChartModel
@@ -43,6 +49,7 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
     private String[] accumId;
     private String[] timeseriesDenominator;
     private int prepull;
+    private boolean yearAsSeries;
 
     public TimeSeriesModel() {
         timeseriesTitle = "";
@@ -52,6 +59,7 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
         width = 900;
         height = 425;
         prepull = -1;
+        yearAsSeries = false;
     }
 
     public String getTimeseriesTitle() {
@@ -149,4 +157,88 @@ public class TimeSeriesModel { // TODO refactor with ChartModel
     public void setGraphExpectedValues(boolean graphExpectedValues) {
         this.graphExpectedValues = graphExpectedValues;
     }
+
+    public boolean isYearAsSeries() {
+        return yearAsSeries;
+    }
+
+    public void setYearAsSeries(boolean yearAsSeries) {
+        this.yearAsSeries = yearAsSeries;
+    }
+
+
+    /**
+     * Extract time resolution for the time series
+     * 
+     * @param groupingDim GroupingDimension object
+     * @param groupId String group ID
+     * @return time resolution as a String
+     */
+    public String getResolution(GroupingDimension groupingDim, String groupId) {
+        String resolution = "";
+
+        if (getTimeseriesGroupResolution() != null) {
+            String[] parts = getTimeseriesGroupResolution().split(":");
+            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
+                resolution = parts[1];
+            }
+        }
+
+        // find resolution handlers as appropriate for groupings
+        if (resolution == null || "".equals(groupId)) {
+            String[] res = groupingDim.getResolutions().toArray(new String[groupingDim.getResolutions().size()]);
+            if (res.length > 0) {
+                resolution = res[0];
+            }
+        }
+
+        return resolution;
+    }
+
+    /**
+     * Extracts group ID from TimeSeriesModel object
+     * 
+     * @return group ID as a String
+     */
+    public String getGroupId() {
+        String groupId = "";
+
+        if (getTimeseriesGroupResolution() != null) {
+            String[] parts = getTimeseriesGroupResolution().split(":");
+            if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
+                groupId = parts[0];
+            }
+        }
+
+        if (groupId == null || groupId.isEmpty()) {
+            throw new OeDataSourceException("No Grouping Dimension ID specified");
+        }
+        return groupId;
+    }
+
+
+    /**
+     * Builds graph data object using this time series model information
+     * 
+     * @return DefaultGraphData object
+     */
+    public DefaultGraphData initGraphData() {
+
+        // create graph data and set known configuration
+        DefaultGraphData graphData = new DefaultGraphData();
+        graphData.setShowSingleSeverityLegends(false);
+        graphData.setGraphTitle(getTimeseriesTitle());
+        graphData.setGraphWidth(getWidth());
+        graphData.setGraphHeight(getHeight());
+        graphData.setShowLegend(true);
+        graphData.setBackgroundColor(new Color(255, 255, 255, 0));
+
+        // only set an array if they provided one
+        if (getGraphBaseColors() != null && getGraphBaseColors().length > 0) {
+            // TODO leverage Spring to convert colors
+            graphData.setGraphBaseColors(ControllerUtils.getColorsFromHex(Color.BLACK, getGraphBaseColors()));
+        }
+        return graphData;
+    }
+
 }

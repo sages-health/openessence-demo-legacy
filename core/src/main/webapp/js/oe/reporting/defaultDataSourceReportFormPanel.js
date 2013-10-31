@@ -81,6 +81,7 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
         });
 
         if (configuration.timeseriesCallback && OE.util.getBooleanValue(this.metadata.supportTimeseries, true)) {
+        	var yearAsSeries = OE.util.getBooleanValue(this.metadata.yearAsSeries, false);
             buttons.push({
                 text: messagesBundle['query.timeseries'],
                 handler: function () {
@@ -94,7 +95,7 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
                         }
                     });
 
-                    me.showTimeSeriesParamatersForm({accumulations: accumulations});
+                    me.showTimeSeriesParamatersForm({accumulations: accumulations, yearAsSeries : yearAsSeries});
                 },
                 scope: configuration
             });
@@ -407,7 +408,8 @@ OE.report.ReportForm = Ext.extend(Ext.form.FormPanel, {
                     //filters.displayVals = me.getSelectedDisplayVals();
                     me.timeseriesCallback({
                         filters: filters,
-                        dsId: ds
+                        dsId: ds,
+                        yearAsSeries: formConfiguration.yearAsSeries
                     });
                 }
 
