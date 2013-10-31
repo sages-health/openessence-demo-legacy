@@ -61,7 +61,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.WebRequest;
 
 import java.io.IOException;
-import java.text.DateFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,19 +80,6 @@ public class TSHelper {
 
     private static final Logger log = LoggerFactory.getLogger(TSHelper.class);
     private static final String TIMEZONE_ENABLED = "timezone.enabled";
-
-    // number format for level
-    public static final NumberFormat NUM_FORMAT3 = NumberFormat.getNumberInstance();
-    // number format for expected count
-    public static final NumberFormat NUM_FORMAT1 = NumberFormat.getNumberInstance();
-
-    static {
-        NUM_FORMAT3.setMinimumFractionDigits(0);
-        NUM_FORMAT3.setMaximumFractionDigits(3);
-
-        NUM_FORMAT1.setMinimumFractionDigits(0);
-        NUM_FORMAT1.setMaximumFractionDigits(1);
-    }
 
     /**
      * Extract timezone offset from the request and return it as hours minutes string
@@ -660,4 +646,13 @@ public class TSHelper {
         return result;
     }
 
+    public NumberFormat getNumberFormat(int maxFractionDigits)
+    {
+        NumberFormat numFormat = NumberFormat.getNumberInstance();
+        numFormat.setMinimumFractionDigits(0);
+        numFormat.setMaximumFractionDigits(maxFractionDigits);
+        // number format for level (3) and expected values (1)
+        return numFormat;
+    }
+    
 }

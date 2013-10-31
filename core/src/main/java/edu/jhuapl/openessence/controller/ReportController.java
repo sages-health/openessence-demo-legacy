@@ -26,8 +26,6 @@
 
 package edu.jhuapl.openessence.controller;
 
-import edu.jhuapl.bsp.detector.DetectorHelper;
-import edu.jhuapl.bsp.detector.TemporalDetectorInterface;
 import edu.jhuapl.bsp.detector.TemporalDetectorSimpleDataObject;
 import edu.jhuapl.bsp.detector.exception.DetectorException;
 import edu.jhuapl.bsp.detector.temporal.epa.NoDetectorDetector;
@@ -108,9 +106,9 @@ import java.io.OutputStream;
 import java.security.Principal;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -516,6 +514,12 @@ public class ReportController extends OeController {
         int accumIndex = 0;
         boolean epiWeekEnabled = isEpiWeekEnabled();
         boolean dataFound = false;
+        
+        // number format for level
+        NumberFormat numFormat3 = tsHelper.getNumberFormat(3);
+        // number format for expected count
+        NumberFormat numFormat1 = tsHelper.getNumberFormat(1);
+
         // Accumulation will be year
         // for each year run TS query and plot results
         for (Dimension accumulation : selectedAccumulations) {
@@ -623,9 +627,9 @@ public class ReportController extends OeController {
 
                     altTexts[i] = "(" + accumIdTranslated + ") " + // Accum
                             "Date: " + dates[i] + // Date
-                            ", Level: " + TSHelper.NUM_FORMAT3.format(levels[i]) + // Level
+                            ", Level: " + numFormat3.format(levels[i]) + // Level
                             ", Count: " + ((int) counts[i]) + // Count
-                            ", Expected: " + TSHelper.NUM_FORMAT1.format(expecteds[i]); // Expected
+                            ", Expected: " + numFormat1.format(expecteds[i]); // Expected
 
                     if (switchInfo != null) {
                         altTexts[i] += ", Switch: " + switchInfo[i] + ", ";
@@ -710,6 +714,11 @@ public class ReportController extends OeController {
             List<AccumPoint> points = extractAccumulationPoints(userPrincipalName, dss, records, startDayCal.getTime(), startEndDatePair.getSecond(),
                 dimensions, group, resolutionHandlers);
             if (points.size() > 0) {
+                // number format for level
+                NumberFormat numFormat3 = tsHelper.getNumberFormat(3);
+                // number format for expected count
+                NumberFormat numFormat1 = tsHelper.getNumberFormat(1);
+
                 DateFormat dateFormat = getDateFormat(timeResolution, clientTimezone); 
                 
                 //-- Handles Denominator Types -- //
@@ -785,9 +794,9 @@ public class ReportController extends OeController {
 
                         altTexts[i] = "(" + accumIdTranslated + ") " + // Accum
                                       "Date: " + dates[i] + // Date
-                                      ", Level: " + TSHelper.NUM_FORMAT3.format(levels[i]) + // Level
+                                      ", Level: " + numFormat3.format(levels[i]) + // Level
                                       ", Count: " + ((int) counts[i]) + // Count
-                                      ", Expected: " + TSHelper.NUM_FORMAT1.format(expecteds[i]); // Expected
+                                      ", Expected: " + numFormat1.format(expecteds[i]); // Expected
 
                         if (switchInfo != null) {
                             altTexts[i] += ", Switch: " + switchInfo[i] + ", ";
