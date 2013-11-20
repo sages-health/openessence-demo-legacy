@@ -181,11 +181,16 @@ public class ReportController extends OeController {
         }
     }
 
+    /**
+     *
+     * @deprecated Use {@link DataSourceController#fields(edu.jhuapl.openessence.datasource.jdbc.JdbcOeDataSource)}
+     * instead
+     */
+    @Deprecated
     @RequestMapping("/getFields")
-    // TODO return real domain object
-    public
     @ResponseBody
-    Map<String, Object> getFields(@RequestParam("dsId") JdbcOeDataSource ds) throws IOException {
+    // TODO return real domain object
+    public Map<String, Object> getFields(@RequestParam("dsId") JdbcOeDataSource ds) throws IOException {
         final Map<String, Object> result = new HashMap<String, Object>();
         final List<DimensionConfiguration> filters = new ArrayList<DimensionConfiguration>();
         filters.addAll(getDimensionsInformation(ds.getFilterDimensions()));
@@ -290,10 +295,14 @@ public class ReportController extends OeController {
         return results;
     }
 
+    /**
+     *
+     * @deprecated Use {@link DiagramController}
+     */
+    @Deprecated
     @RequestMapping("/timeSeriesJson")
-    public
     @ResponseBody
-    Map<String, Object> timeSeriesJson(@RequestParam("dsId") JdbcOeDataSource ds, TimeSeriesModel model,
+    public Map<String, Object> timeSeriesJson(@RequestParam("dsId") JdbcOeDataSource ds, TimeSeriesModel model,
                                        Principal principal, WebRequest request, HttpServletRequest servletRequest)
             throws ErrorMessageException {
 
@@ -409,10 +418,14 @@ public class ReportController extends OeController {
         return result;
     }
 
+    /**
+     *
+     * @deprecated Use {@link DiagramController}
+     */
+    @Deprecated
     @RequestMapping("/chartJson")
-    public
     @ResponseBody
-    Map<String, Object> chartJson(WebRequest request, HttpServletRequest servletRequest,
+    public Map<String, Object> chartJson(WebRequest request, HttpServletRequest servletRequest,
                                   @RequestParam("dsId") JdbcOeDataSource ds, ChartModel chartModel)
             throws ErrorMessageException {
 
@@ -520,6 +533,10 @@ public class ReportController extends OeController {
         return response;
     }
 
+    private boolean isTimeZoneEnabled() {
+        return "true".equalsIgnoreCase(messageSource.getMessage(TIMEZONE_ENABLED, "false"));
+    }
+
     private Map<String, Object> createTimeseries(String userPrincipalName, DataSeriesSource dss, List<Filter> filters,
                                                  GroupingImpl group,
                                                  String timeResolution, Integer prepull, String graphTimeSeriesUrl,
@@ -560,8 +577,7 @@ public class ReportController extends OeController {
                     new ArrayList<Dimension>(ControllerUtils.unionDimensions(accumulations, timeseriesDenominators));
 
             int timeOffsetMillies = 0;
-            String timezoneEnabledString = messageSource.getMessage(TIMEZONE_ENABLED, "false");
-            if (timezoneEnabledString.equalsIgnoreCase("true")) {
+            if (isTimeZoneEnabled()) {
                 timeOffsetMillies = (clientTimezone.getRawOffset() - clientTimezone.getDSTSavings()) -
                                     (TimeZone.getDefault().getRawOffset() - TimeZone.getDefault().getDSTSavings());
             }
@@ -577,7 +593,10 @@ public class ReportController extends OeController {
             if (points.size() > 0) {
                 DateFormat dateFormat = getDateFormat(timeResolution); //dateFormat.setTimeZone(timezone);
                 DateFormat tmpDateFormat = (DateFormat) dateFormat.clone();
-                tmpDateFormat.setTimeZone(clientTimezone);
+
+                if (isTimeZoneEnabled()) {
+                    tmpDateFormat.setTimeZone(clientTimezone);
+                }
 
                 // number format for level
                 NumberFormat numFormat3 = NumberFormat.getNumberInstance();
@@ -1651,6 +1670,19 @@ public class ReportController extends OeController {
         Collection<Record> points =
                 new DetailsQuery().performDetailsQuery(ds, results, accumulations, filters, sorts, false,
                                                        clientTimezone);
+        // Translate accumulation int to bool if renderIntToBool set to true
+        // if accumulation value is null ==> false else true
+        String renderIntToBool = request.getParameter("renderIntToBool");
+        if (renderIntToBool != null && renderIntToBool.equalsIgnoreCase("true")) {
+            for (Record point : points) {
+                Map<String, Object> vals = point.getValues();
+                for (Dimension accum : accumulations) {
+                    Object accumVal = vals.get(accum.getId());
+                    vals.put(accum.getId(), accumVal != null);
+                }
+            }
+        }
+
         response.setContentType("text/csv;charset=utf-8");
 
         String filename =

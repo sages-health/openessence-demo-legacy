@@ -32,8 +32,10 @@ import org.apache.tools.ant.filters.ReplaceTokens
 import org.eclipse.jgit.lib.*
 import org.apache.tools.ant.filters.EscapeUnicode
 
-// add site-specific build logic
-apply from: 'site.gradle'
+if (file('dev.gradle').exists()) {
+    // load custom developer settings
+    apply from: 'dev.gradle'
+}
 
 allprojects {
     apply plugin: 'java'
@@ -65,7 +67,7 @@ allprojects {
     ext {
         versions = [
                 spring: '3.2.3.RELEASE',
-                springSecurity: '3.1.4.RELEASE',
+                springSecurity: '3.2.0.RC1',
                 commonsIo: '2.4',
                 jackson: '1.9.12',
                 bonecp: '0.7.1.RELEASE',
@@ -92,6 +94,10 @@ allprojects {
 
             // for JAI
             url "http://repository.springsource.com/maven/bundles/external"
+        }
+        maven {
+            // for Spring Security RC, this can be removed when it hits GA
+            url "http://repo.springsource.org/milestone"
         }
     }
 
@@ -152,5 +158,5 @@ allprojects {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '1.6'
+    gradleVersion = '1.8'
 }

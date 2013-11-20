@@ -26,21 +26,21 @@
 
 package edu.jhuapl.openessence.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.ImportResource;
-import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableAsync;
 
-/**
- * JavaConfig version of security.xml. Spring doesn't like it when you mix XML and JavaConfig together. For example,
- * unit tests can declare {@code @Configuration} classes or XML they use, but not both. Thus, this class exists as a
- * JavaConfig "shim" over security.xml so that everything can be configured through JavaConfig.
- */
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @Configuration
-@Profile(SecurityConfig.SECURITY_PROFILE)
-@ImportResource("classpath:security.xml")
-public class SecurityConfig {
+@EnableAsync
+public class AsyncConfig implements AsyncConfigurer {
 
-    public static final String SECURITY_PROFILE = "security";
-
-    // do nothing until Spring Security supports JavaConfig
+    @Bean
+    @Override
+    public ExecutorService getAsyncExecutor() {
+        return Executors.newCachedThreadPool();
+    }
 }

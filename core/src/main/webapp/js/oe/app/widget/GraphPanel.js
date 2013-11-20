@@ -38,14 +38,13 @@ OE.GraphPanel = Ext.extend(Ext.Panel, { // TODO extend OE.DiagramPanel, refactor
 
         config = Ext.apply(config, {
             layout: 'border',
-            title: config.title || messagesBundle['panel.timeseries.header'] + ' ' + config.index,
             closable: true,
             items: [chartPanel]
         });
 
         OE.GraphPanel.superclass.constructor.call(this, config);
 
-        this.loadChart(config);
+        this.loadChart();
     },
 
     loadChart: function () {
@@ -61,6 +60,16 @@ OE.GraphPanel = Ext.extend(Ext.Panel, { // TODO extend OE.DiagramPanel, refactor
         Ext.applyIf(params, {height: 460});
 
         var me = this;
+        if (me.graphConfiguration) {
+            var graphConfig = me.graphConfiguration;
+            Ext.apply(params, {
+                timeseriesTitle: graphConfig.graphTitle,
+                xAxisLabel: graphConfig.xAxisLabel,
+                yAxisLabel: graphConfig.yAxisLabel,
+                yAxisMax: graphConfig.yAxisMax,
+                yAxisMin: graphConfig.yAxisMin
+            });
+        }
         OE.data.doAjaxRestricted({
             url: this.url,
             method: 'GET',
@@ -219,6 +228,7 @@ OE.GraphPanel = Ext.extend(Ext.Panel, { // TODO extend OE.DiagramPanel, refactor
                 treeData.push(parentAry);
                 i--; // we still have to add the next element in the JSON
             } else {
+                parentAry = [];
                 parentAry.id = "checkbox" + graphId + i;
                 parentAry.name = "checkbox" + graphId + i;
                 parentAry.text = dataSeriesJSON[i].seriesName;

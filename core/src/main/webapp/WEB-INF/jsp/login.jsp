@@ -34,11 +34,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- The X-UA-Compatible header is only supported starting with Windows Internet Explorer 8.  It must appear in the Web -->
-    <!-- page's header (the HEAD section) before all other elements, except for the title element and other meta elements.  -->
-    <!--     http://stackoverflow.com/questions/12222832/gwt-ie9-emulate-ie8                     -->
-    <!--     http://msdn.microsoft.com/en-us/library/cc288325%28v=vs.85%29.aspx#SetMode          -->
+    <meta charset="utf-8"> <%-- must be in first 512 bytes to prevent potential XSS --%>
+    <%--
+    The X-UA-Compatible header is only supported starting with Windows Internet Explorer 8.
+    It must appear in the Web
+    page's header (the HEAD section) before all other elements, except for the title element and other meta elements.
+    http://stackoverflow.com/questions/12222832/gwt-ie9-emulate-ie8
+    http://msdn.microsoft.com/en-us/library/cc288325%28v=vs.85%29.aspx#SetMode
+    --%>
     <meta http-equiv="X-UA-Compatible" content="IE=8">
+
+    <meta name="_csrf" content="${_csrf.token}">
+    <meta name="_csrf_header" content="${_csrf.headerName}">
+
+    <meta name="_context_path" content="${contextPath}">
+    <meta name="_servlet_path" content="/oe">
+    <meta name="_locale" content="${locale}">
 
     <title><spring:message code="app.title" text="app.title"/></title>
     <link rel="shortcut icon" href="${contextPath}/images/openessence.ico"/>
@@ -49,6 +60,7 @@
     <link type="text/css" rel="stylesheet" href="${contextPath}/js/ext-3.0.3/resources/css/xtheme-tp.css"/>
     <link type="text/css" rel="stylesheet" href="${contextPath}/css/openessence.css"/>
 
+    <script type="text/javascript" src="${contextPath}/js/lib/requirejs/require.js"></script>
     <%-- TODO use conditional loader (Modernizr.load or yepnope.js) --%>
     <!--[if lt IE 9]>
     <script type="text/javascript" src="${contextPath}/js/lib/html5shiv/html5shiv.js"></script>
@@ -62,7 +74,9 @@
 
 <body>
 
-<script type="text/javascript" src="${contextPath}/js/ext-3.0.3/adapter/ext/ext-base.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="${contextPath}/js/lib/jquery/jquery-1.10.2.min.js"><\/script>')</script>
+<script type="text/javascript" src="${contextPath}/js/ext-3.0.3/adapter/jquery/ext-jquery-adapter.js"></script>
 <script type="text/javascript" src="${contextPath}/js/ext-3.0.3/ext-all.js"></script>
 <%--<script type="text/javascript" src="${contextPath}/js/ext-3.0.3/ext-all-debug.js"></script>--%>
 
@@ -70,20 +84,8 @@
      not what the browser says it supports --%>
 <script type="text/javascript" src="${contextPath}/js/ext-3.0.3/src/locale/ext-lang-${locale}.js"></script>
 
-<%-- OpenESSENCE JS used by every page --%>
-<script type="text/javascript">
-    Ext.namespace("OE.login", "OE.context");
-    OE.context.root = '${contextPath}';
-    OE.servletPath = '/oe';
-    var SELECTED_LOCALE = '${locale}';
-    Ext.USE_NATIVE_JSON = true;
-
-    <%-- don't rely on modifying builtin objects, Ext 4 wised up and stopped that --%>
-    if (!Ext.String) {
-        Ext.String = String;
-    }
-</script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/plugin/extFixOverrides.js"></script>
+<script type="text/javascript" src="${contextPath}/js/oe/app.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/login.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/util/oeUtils.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/Header.js"></script>

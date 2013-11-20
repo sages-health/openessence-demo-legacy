@@ -36,18 +36,11 @@ OE.report.datasource.panel = function (configuration) {
     var resultsTabPanel = null;
     var queryFormPanel = null;
 
-    function populateQueryFormPanel(parameters, expand) {
-        queryFormPanel.populate(parameters);
-        queryFormPanel.expand(expand ? expand : true);
-    }
-
     function showTimeSeries(parameters) {
-        var tab = resultsTabPanel.add(new OE.GraphPanel({
+        var tab = resultsTabPanel.add(new configuration.graphTabClass({
             url: OE.util.getUrl('/ds/' + configuration.dataSource + '/diagrams/time-series'),
-            title: parameters.title, // callee handles if this is undefined
-            parameters: parameters,
-            queryFormCallback: populateQueryFormPanel,
-            index: ++n
+            title: parameters.title || messagesBundle['panel.timeseries.header'] + ' ' + (++n),
+            parameters: parameters
         }));
         tab.parameters = parameters || {};
         tab.parameters.queryType = 'timeseries';
@@ -55,7 +48,7 @@ OE.report.datasource.panel = function (configuration) {
         resultsTabPanel.setActiveTab(tab);
         queryFormPanel.collapse(true);
     }
-
+    
     function showPivot(parameters) {
         var pivotParams = parameters.pivot || {};
         var ctId = Ext.id() + '-pivottable';
@@ -63,77 +56,7 @@ OE.report.datasource.panel = function (configuration) {
             id: ctId,
 
             // parameters.title is set if running a saved query
-            title: parameters.title || messagesBundle['query.pivot'] + ' ' + ++n
-        });
-
-        var getDetails = function () {
-            var deferred = new $.Deferred();
-
-            OE.data.doAjaxRestricted({
-                url: OE.util.getUrl('/report/detailsQuery'),
-                method: 'GET',
-                scope: this,
-                params: Ext.apply({
-                    dsId: configuration.dataSource,
-                    pagesize: -1
-                }, parameters.filters),
-                onJsonSuccess: function (response) {
-                    deferred.resolve(response);
-                },
-                onRelogin: {callback: OE.datasource.grid.init, args: [configuration]}
-            });
-
-            return deferred.promise();
-        };
-
-        var fetchPivotJs = function () {
-            var deferred = new $.Deferred();
-            require(['pivottable'], function ($) {
-                deferred.resolve($);
-            });
-            return deferred.promise();
-        };
-
-        // for some reason, Q.all fails on IE, even though this jQuery version works,
-        // probably some weird bug from the combo of augment.js + Q + old version of ExtJS
-        $.when(getDetails(), fetchPivotJs()).done(function (response, $) {
-            var pivotEl = $('#' + ctId);
-            var pivot = pivotEl.pivotUI(response.rows, {
-                rows: pivotParams.rows,
-                cols: pivotParams.cols
-            });
-            pivotEl.parent().css('overflow', 'auto');
-
-            // add export button
-            $('<button type="button">' + messagesBundle['panel.details.export.link'] + '</button>')
-                .insertAfter(pivotEl.find('#renderer'))
-                .addClass('btn btn-default') // one day we'll use bootstrap...
-                .click(function () {
-                    require(['filedownload'], function ($) {
-                        var requestParams = {
-                            dsId: parameters.dsId,
-                            timezoneOffset: new Date().getTimezoneOffset(),
-                            results: parameters.results.map(function (r) {
-                                if (Array.isArray(r)) {
-                                    // result dimension is tuple of ID, name, and other stuff
-                                    return r[0];
-                                } else {
-                                    // accumulation ID
-                                    return r;
-                                }
-                            })
-                        };
-
-                        // TODO make exportGridToFile accept explicit filters
-                        Ext.apply(requestParams, parameters.filters);
-
-                        var url = Ext.urlAppend(OE.util.getUrl('/report/exportGridToFile'),
-                            Ext.urlEncode(requestParams));
-                        $.fileDownload(url, {
-                            failCallback: OE.data.defaultUnsuccessfulRequest
-                        });
-                    });
-                });
+            title: parameters.title || messagesBundle['query.pivot'] + ' ' + (++n)
         });
 
         tab.parameters = parameters || {};
@@ -146,38 +69,157 @@ OE.report.datasource.panel = function (configuration) {
         resultsTabPanel.setActiveTab(tab);
         queryFormPanel.collapse(true);
 
+        require(['jqueryui', 'moment'], function ($, moment) {
+            var getDetails = function () {
+                var deferred = new $.Deferred();
+
+                OE.data.doAjaxRestricted({
+                    url: OE.util.getUrl('/ds/' + configuration.dataSource + '/details'),
+                    method: 'GET',
+                    scope: this,
+                    params: Ext.apply({
+                        pagesize: -1
+                    }, parameters.filters),
+                    onJsonSuccess: function (response) {
+                        var pivotData = (function (rows, results) {
+                            return rows.map(function (row) {
+                                var newRow = {};
+                                results.forEach(function (result) {
+                                    var dimensionId = Array.isArray(result) ? result[0] : result;
+                                    var dimensionLabel = Array.isArray(result) ? result[1] : result;
+                                    var oldValue = row[dimensionId];
+                                    var newValue = oldValue;
+
+                                    // format dates
+                                    if (!Array.isArray(result)) {
+                                        // this happens with accumulation dimensions (and maybe some others?)
+                                        newRow[dimensionLabel] = newValue;
+                                    } else {
+                                        if (result.length >= 2 && result[2] && result[2].type == 'DATE') {
+                                            if (('string' == typeof oldValue) || ('number' == typeof oldValue)) {
+                                                newValue = moment(oldValue).format('L');
+                                            }
+                                        }
+                                    }
+
+                                    // new row is same as old row, but with dimension labels for keys instead of
+                                    // dimension IDs and dates formatted
+                                    newRow[dimensionLabel] = newValue;
+                                });
+
+                                return newRow;
+                            });
+                        })(response.rows, parameters.results);
+
+                        deferred.resolve(pivotData);
+                    },
+                    onRelogin: {callback: OE.datasource.grid.init, args: [configuration]}
+                });
+
+                return deferred.promise();
+            };
+
+            var fetchPivotJs = function () {
+                var deferred = new $.Deferred();
+                require(['pivottable'], function ($) {
+                    deferred.resolve($);
+                });
+                return deferred.promise();
+            };
+
+            // for some reason, Q.all fails on IE, even though this jQuery version works,
+            // probably some weird bug from the combo of augment.js + Q + old version of ExtJS
+            $.when(getDetails(), fetchPivotJs()).done(function (rows, $) {
+                var pivotEl = $('#' + ctId);
+                pivotEl.pivotUI(rows, {
+                    rows: pivotParams.rows,
+                    cols: pivotParams.cols,
+                    vals: pivotParams.vals
+                });
+                if (pivotParams.renderer) {
+                    pivotEl.find("#renderer").val(pivotParams.renderer).trigger("change");
+                }
+                if (pivotParams.aggregator) {
+                    pivotEl.find("#aggregator").val(pivotParams.aggregator).trigger("change");
+                }
+                pivotEl.parent().css('overflow', 'auto');
+
+                // add export button
+                $('<button type="button">' + messagesBundle['panel.details.export.link'] + '</button>')
+                    .insertAfter(pivotEl.find('#renderer'))
+                    .addClass('btn btn-default') // one day we'll use bootstrap...
+                    .click(function () {
+                        require(['filedownload'], function ($) {
+                            var requestParams = {
+                                dsId: parameters.dsId,
+                                timezoneOffset: new Date().getTimezoneOffset(),
+                                results: parameters.results.map(function (r) {
+                                    if (Array.isArray(r)) {
+                                        // result dimension is tuple of ID, name, and other stuff
+                                        return r[0];
+                                    } else {
+                                        // accumulation ID
+                                        return r;
+                                    }
+                                })
+                            };
+
+                            // TODO make exportGridToFile accept explicit filters
+                            Ext.apply(requestParams, parameters.filters);
+
+                            var url = Ext.urlAppend(OE.util.getUrl('/report/exportGridToFile'),
+                                Ext.urlEncode(requestParams));
+                            $.fileDownload(url, {
+                                failCallback: OE.data.defaultUnsuccessfulRequest
+                            });
+                        });
+                    });
+            });
+        });
+
+        // return immediately, add pivot async
         return tab;
-    };
+    }
     
     function showDetails(parameters) {
+        var me = this;
+
         Ext.applyIf(parameters, {
             gridClass: Ext.grid.GridPanel
         });
 
-        var tab = resultsTabPanel.add(OE.report.datasource.details.init({
-            url: parameters.url,
-            title: parameters.title,
-            autoTitle: parameters.autoTitle,
-            data: configuration.data,
-            dataSource: configuration.dataSource,
-            parameters: parameters,
-            queryFormCallback: populateQueryFormPanel,
-            gridClass: parameters.gridClass,
-            gridExtraConfig: parameters.gridExtraConfig,
-            pageSize: parameters.pageSize,
-            pivot: parameters.pivot,
-            index: ++n
-        }));
-        tab.parameters = parameters || {};
+        var addTab = function (detailsTabClass) {
+            var tab = resultsTabPanel.add(new detailsTabClass({
+                url: parameters.url,
+                title: parameters.title || messagesBundle['panel.details.header'] + ' ' + (++n),
+                data: configuration.data,
+                dataSource: configuration.dataSource,
+                parameters: parameters,
+                gridClass: parameters.gridClass,
+                gridExtraConfig: parameters.gridExtraConfig,
+                pageSize: parameters.pageSize,
+                pivot: parameters.pivot
+            }));
+            tab.parameters = parameters || {};
 
-        // this is a hack so saved queries know what type of query to save
-        // TODO move to more object-oriented solution
-        tab.parameters.queryType = parameters.queryType || 'details';
+            // this is a hack so saved queries know what type of query to save
+            // TODO move to more object-oriented solution
+            tab.parameters.queryType = parameters.queryType || 'details';
 
-        resultsTabPanel.setActiveTab(tab);
-        queryFormPanel.collapse(true);
+            resultsTabPanel.setActiveTab(tab);
+            queryFormPanel.collapse(true);
+        };
 
-        return tab;
+        if (typeof configuration.detailsTabClass == 'string') {
+            // load class through require
+            require([configuration.detailsTabClass], function (OE) {
+                addTab.call(me, OE[configuration.detailsTabClass]);
+            });
+        } else {
+            addTab.call(me, configuration.detailsTabClass);
+        }
+
+        // adds tab asynchronously, although we could return a promise if anyone wanted the details tab
     }
 
     function showCharts(parameters) {
@@ -187,7 +229,6 @@ OE.report.datasource.panel = function (configuration) {
             //Overriding title for charts since they have an ext title
             parameters: Ext.apply(parameters, {title: ""}),
             charts: parameters.charts,
-            queryFormCallback: populateQueryFormPanel,
             index: ++n
         }));
         tab.parameters = parameters || {};
@@ -206,8 +247,7 @@ OE.report.datasource.panel = function (configuration) {
         n++;
         var tab = resultsTabPanel.add(new configuration.mapTabClass({ // use injected MapTab implementation
             title: parameters.title || messagesBundle['panel.map.header'] + ' ' + n,
-            getMapData: parameters,
-            queryFormCallback: populateQueryFormPanel
+            getMapData: parameters
         }));
         tab.parameters = parameters || {};
         tab.parameters.queryType = 'map';
@@ -321,9 +361,12 @@ OE.report.datasource.panel = function (configuration) {
                                                 };
                                                 var pivot = $('#' + tab.parameters.pivotId);
                                                 return {
+                                                    renderer: pivot.find('#renderer').val(),
+                                                    aggregator: pivot.find('#aggregator').val(),
+                                                    vals: extractId(pivot.find('#vals li')),
                                                     rows: extractId(pivot.find('#rows li')),
                                                     cols: extractId(pivot.find('#cols li'))
-                                                }
+                                                };
                                             })()
                                         })
                                     },
