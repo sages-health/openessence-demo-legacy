@@ -393,6 +393,16 @@ public class ReportController extends OeController {
         graphData.setShowLegend(true);
         graphData.setBackgroundColor(new Color(255, 255, 255, 0));
 
+        String xAxisLabel = messageSource.getDataSourceMessage(group.getResolution(), dss);
+        String yAxisLabel = messageSource.getDataSourceMessage("graph.count", dss);
+        if (timeseriesDenominators != null && !timeseriesDenominators.isEmpty()) {
+            yAxisLabel = messageSource.getDataSourceMessage("graph.percent", dss);
+        }
+        xAxisLabel = (model.getXAxisLabel() != null && model.getXAxisLabel().length() > 0) ? model.getXAxisLabel() : xAxisLabel;
+        yAxisLabel = (model.getYAxisLabel() != null && model.getYAxisLabel().length() > 0) ? model.getYAxisLabel() : yAxisLabel;
+        graphData.setXAxisLabel(xAxisLabel);
+        graphData.setYAxisLabel(yAxisLabel);
+
         // only set an array if they provided one
         if (model.getGraphBaseColors() != null && model.getGraphBaseColors().length > 0) {
             // TODO leverage Spring to convert colors
@@ -402,7 +412,12 @@ public class ReportController extends OeController {
         String graphTimeSeriesUrl = request.getContextPath() + servletRequest.getServletPath()
                                     + "/report/graphTimeSeries";
         graphTimeSeriesUrl = appendGraphFontParam(ds, graphTimeSeriesUrl);
-
+        if (model.getYAxisMin() != null) {
+            graphTimeSeriesUrl = appendUrlParameter(graphTimeSeriesUrl, "yAxisMin", model.getYAxisMin().toString());
+        }
+        if (model.getYAxisMax() != null) {
+            graphTimeSeriesUrl = appendUrlParameter(graphTimeSeriesUrl, "yAxisMax", model.getYAxisMax().toString());
+        }
         //TODO, this still uses the html method from the graph module and then wraps in json...move to a pure json method
         Map<String, Object> timeseriesResult = createTimeseries(principal.getName(), dss,
                                                                 filters, group, resolution, model.getPrepull(),
@@ -411,7 +426,8 @@ public class ReportController extends OeController {
                                                                 model.getTimeseriesDetectorClass(),
                                                                 model.isIncludeDetails(),
                                                                 model.isDisplayIntervalEndDate(), graphData,
-                                                                ControllerUtils.getRequestTimezone(request), model.isGraphExpectedValues());
+                                                                ControllerUtils.getRequestTimezone(request), model.isGraphExpectedValues(),
+                                                                model.getYAxisMin(), model.getYAxisMax());
 
         result.putAll(timeseriesResult);
 
@@ -545,7 +561,7 @@ public class ReportController extends OeController {
                                                  final List<Dimension> timeseriesDenominators,
                                                  String detectorClass, boolean includeDetails,
                                                  boolean displayIntervalEndDate, GraphDataInterface graphData,
-                                                 TimeZone clientTimezone, boolean graphExpected) {
+                                                 TimeZone clientTimezone, boolean graphExpected, Double yAxisMin, Double yAxisMax) {
 
         Map<String, Object> result = new HashMap<String, Object>();
         Map<String, ResolutionHandler> resolutionHandlers = null;
@@ -622,7 +638,6 @@ public class ReportController extends OeController {
                 double[] divisors = new double[points.size()];
                 double multiplier = 1.0;
                 boolean percentBased = false;
-                String yAxisLabel = messageSource.getDataSourceMessage("graph.count", dss);
 
                 boolean isDetectionDetector = !NoDetectorDetector.class
                         .getName().equalsIgnoreCase(detectorClass);
@@ -633,7 +648,6 @@ public class ReportController extends OeController {
                     divisors = totalSeriesValues(points, timeseriesDenominators);
                     multiplier = 100.0;
                     percentBased = true;
-                    yAxisLabel = messageSource.getDataSourceMessage("graph.percent", dss);
                 } else {
                     //the query is for total counts
                     Arrays.fill(divisors, 1.0);
@@ -751,7 +765,6 @@ public class ReportController extends OeController {
 
                     Calendar c = Calendar.getInstance(clientTimezone);
 
-//				   Calendar curr = Calendar.getInstance();
                     for (int i = 0; i < tddoLength; i++) {
                         colors[i] = (int) tcolors[i];
 
@@ -816,8 +829,6 @@ public class ReportController extends OeController {
                                         .append(timeSet.getTimeInMillis()).append("'");
                             }
                         } else {
-                            // compute end date for individual data points based on the selected resolution
-//						   detailsPointEndDate = computeEndDate(tdates[i],timeResolution);
                             // add the date field with start and end dates from the data point
                             tmp.append(",").append(dateFieldName).append("_start:'").append(tdates[i].getTime())
                                     .append("'");
@@ -863,15 +874,11 @@ public class ReportController extends OeController {
                 // graphData.setDisplaySeverityAlerts(displayAlerts);
                 graphData.setPercentBased(percentBased);
 
-                graphData.setXAxisLabel(messageSource.getDataSourceMessage(group.getResolution(), dss));
-                graphData.setYAxisLabel(yAxisLabel);
-
                 int maxLabels = graphData.getGraphWidth() / 30;
                 graphData.setMaxLabeledCategoryTicks(Math.min(maxLabels, allCounts[0].length));
 
                 StringBuffer sb = new StringBuffer();
                 GraphObject graph = gc.writeTimeSeriesGraph(sb, graphData, true, true, false, graphTimeSeriesUrl, graphExpected);
-
                 result.put("html", sb.toString());
 
                 //added to build method calls from javascript
@@ -887,8 +894,8 @@ public class ReportController extends OeController {
                 graphConfig.put("graphWidth", graphData.getGraphWidth());
                 graphConfig.put("graphHeight", graphData.getGraphHeight());
 
-                graphConfig.put("yAxisMin", graph.getYAxisMin());
-                graphConfig.put("yAxisMax", graph.getYAxisMax());
+                graphConfig.put("yAxisMin", yAxisMin != null ? yAxisMin : graph.getYAxisMin());
+                graphConfig.put("yAxisMax", yAxisMax != null ? yAxisMax : graph.getYAxisMax());
 
                 // fix invalid JSON coming from GraphController
                 String dataSeriesJson = graph.getDataSeriesJSON()
