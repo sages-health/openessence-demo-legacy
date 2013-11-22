@@ -1466,9 +1466,9 @@ public class ReportController extends OeController {
                                        || grpdim.getSqlType() == FieldType.DATE_TIME)) {
             ArrayList<AccumPoint> fullVector = new ArrayList<AccumPoint>(records.size());
             //create zero points for each accumulation
-            Map<String, Number> zeroes = new HashMap<String, Number>();
+            Map<String, Number> noData = new HashMap<String, Number>();
             for (Dimension accumulation : accumulations) {
-                zeroes.put(accumulation.getId(), 0);
+                noData.put(accumulation.getId(), Double.NaN);
             }
             if (records.size() > 0) {
                 final Calendar cal = new GregorianCalendar();
@@ -1533,7 +1533,7 @@ public class ReportController extends OeController {
                         HashMap<String, Object> map = new HashMap<String, Object>();
                         map.put(groupId, cal.getTime());
                         Record r = new QueryRecord(m, map);
-                        fullVector.add(new AccumPointImpl(zeroes, r));
+                        fullVector.add(new AccumPointImpl(noData, r));
                     }
                     if (resolution.equalsIgnoreCase(WEEKLY)) {
                         // add 7 days if current date falls on week start date
