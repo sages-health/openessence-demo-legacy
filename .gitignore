@@ -11,6 +11,9 @@ target/
 # OS X
 .DS_Store
 
+# For windows
+Thumbs.db
+
 # Eclipse settings
 .classpath
 .project
