@@ -44,6 +44,8 @@
 <c:set var="locale" value="${fn:escapeXml(locale)}"/>
 
 <c:set var="openLayersPath" value="${contextPath}/js/OpenLayers-2.12"/>
+<c:set var="olPath" value="${contextPath}/js/ol3-3.0.0-beta.1"/>
+<c:set var="closurePath" value="${contextPath}/js/closure-library/closure"/>
 
 <!DOCTYPE html>
 <html>
@@ -73,8 +75,8 @@
 
     <link type="text/css" rel="stylesheet"
           href="${contextPath}/js/lib/jquery-ui/css/ui-lightness/jquery-ui-1.10.3.custom.min.css"/>
-    <link type="text/css" rel="stylesheet" href="${openLayersPath}/theme/default/style.css"/>
-    <link type="text/css" rel="stylesheet" href="${contextPath}/js/geoext-0.7/resources/css/geoext-all.css"/>
+    <!-- <link type="text/css" rel="stylesheet" href="${openLayersPath}/theme/default/style.css"/>-->
+    <!-- <link type="text/css" rel="stylesheet" href="${contextPath}/js/geoext-0.7/resources/css/geoext-all.css"/>-->
 
     <link type="text/css" rel="stylesheet" href="${contextPath}/js/extplugins/Multiselect.css"/>
     <link type="text/css" rel="stylesheet" href="${contextPath}/js/extplugins/superboxselect/superboxselect.css"/>
@@ -124,6 +126,7 @@
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/Header.js"></script>
 
 <%-- Mapping extensions, these need to be defined first since later code references them --%>
+ 
 <script type="text/javascript" src="${openLayersPath}/OpenLayers.js"></script>
 <script type="text/javascript" src="${openLayersPath}/lib/OpenLayers/Lang/${locale}.js"></script>
 <script type="text/javascript">
@@ -133,6 +136,216 @@
         OpenLayers.Tile.Image.prototype.maxGetUrlLength = 2048;
     }
 </script>
+<script type="text/javascript" src="${closurePath}/goog/base.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/fx/easing.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/dom/dom.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/editor/node.js"></script>
+
+<script type="text/javascript" src="${closurePath}/goog/functions/functions.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/ol.js"></script>
+
+<script type="text/javascript" src="${closurePath}/goog/debug/entrypointregistry.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/debug/console.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/style/style.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/events/events.js"></script>
+<script type="text/javascript" src="${closurePath}/goog/events/eventtarget.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/object.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/collection.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/size.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/coordinate.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/transformfunction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/extent.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/vectorlayerrenderintent.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/sharedvertices.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/geometry.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/feature.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/expr/expressions.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/expr/lexer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/expr/parser.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/expr/expression.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/literal.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/symbolizer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/rule.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/lineliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/pointliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/shapeliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/polygonliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/textliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/iconliteral.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/fillsymbolizer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/style/pointsymbolizer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/strokesymbolizer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/shapesymbolizer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/style.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/style/textsymbolizer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/tilecoord.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/tilerange.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/attribution.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/array.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/imageurlfunction.js"></script>
+
+
+<script type="text/javascript" src="${olPath}/src/ol/sphere/sphere.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/sphere/normal.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/proj/proj.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/image.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/webgl/webgl.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/webgl/shader.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/structs/rtree.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/structs/integerset.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/structs/lrucache.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/structs/buffer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/structs/priorityqueue.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/geom2/geom2.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom2/pointcollection.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom2/linestringcollection.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/geom/base.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/abstractcollection.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/linestring.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/point.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/linearring.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/polygon.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/multipolygon.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/multipoint.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/multilinestring.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/tilegrid/tilegrid.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/tile.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/tilecache.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/source.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/tilesource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/wmssource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/featureinfosource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/imagesource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/imagewmssource.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/parser/featureparser.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/parser/parser.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/geom/geometrycollection.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/parser/geojsonparser.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/tileurlfunction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/tileloadfunction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/imagetile.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/tileimagesource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/tilewmssource.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/math.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/proj/epsg3857projection.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/tilegrid/xyztilegrid.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/source/xyzsource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/osmsource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/mapquestsource.js"></script>
+
+
+<script type="text/javascript" src="${olPath}/src/ol/layer/layerbase.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/layer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/imagelayer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/browserfeature.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/tilequeue.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/iview3d.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/iview2d.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/iview.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/framestate.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/rotationconstraint.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/resolutionconstraint.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/constraints.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/view.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/view2d.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/mapevent.js"></script>
+
+
+<script type="text/javascript" src="${olPath}/src/ol/pixel.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/mapbrowserevent.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/easing.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/animation.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/renderer/layerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/maprenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/source/vectorsource.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/source/vectorsource2.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/vectorlayer2.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/vec/mat4.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/dom/dom.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/css.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/tilelayer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/dom/domlayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/dom/domimagelayerrenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/layer/vectorlayer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvasvectorrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvaslayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvasvectorlayerrenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webgltilelayershader.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webgllayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglmapdefaultshader.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglmapcolorshader.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglvectorlayer2linestringcollectionshader.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglvectorlayer2pointcollectionshader.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglvectorlayer2renderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webgltilelayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglimagelayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglmaprenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/renderer/webgl/webglrenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/renderer/dom/domtilelayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/dom/dommaprenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/dom/domrenderer.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvastilelayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvasimagelayerrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvasmaprenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/canvas/canvas.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/renderer/canvas/canvasrenderer.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/proj/epsg4326projection.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/proj/common.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/interaction/condition.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/interaction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/touchinteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/touchzoominteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/touchrotateinteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/kinetic.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/touchpaninteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/mousewheelzoominteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/keyboardzoominteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/control/control.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/control/dragboxcontrol.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/draginteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/dragzoominteraction.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/interaction/keyboardpaninteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/dragrotateinteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/doubleclickzoominteraction.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/control/zoomcontrol.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/layer/layergroup.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/control/logocontrol.js"></script>
+
+<script type="text/javascript" src="${olPath}/src/ol/interaction/dragpaninteraction.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/interaction/interactiondefaults.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/control/attributioncontrol.js"></script>
+<script type="text/javascript" src="${olPath}/src/ol/control/controldefaults.js"></script>
+
+
+<script type="text/javascript" src="${olPath}/src/ol/map.js"></script>
+
 <script type="text/javascript" src="${contextPath}/js/geoext-0.7/script/GeoExt.js"></script>
 
 <%-- EXTENSIONS & PLUGINS --%>

@@ -1,0 +1,81 @@
+<html lang="en">
+  <head>
+    <style>
+      .map {
+        height: 400px;
+        width: 100%;
+      }
+    </style>
+    <title>OpenLayers 3 example</title>
+  </head>
+  <body>
+  <table>
+  	<tr><td></td><td><b>Legend</b></td></tr>
+  	<tr>
+  		<td style="width: 15px; height: 15px; background:#aaaaaa;border:1px solid;"/>
+    	<td>No data</td>
+    </tr>
+    <tr>
+  		<td style="width: 15px; height: 15px; background:#abd9e9;border:1px solid;"/>
+    	<td>0-4</td>
+    </tr>
+    <tr>
+  		<td style="width: 15px; height: 15px; background:#ffffbf;border:1px solid;"/>
+    	<td>5-9</td>
+    </tr>
+    <tr>
+  		<td style="width: 15px; height: 15px; background:#fdae61;border:1px solid;"/>
+    	<td>10-19</td>
+    </tr>
+    <tr>
+  		<td style="width: 15px; height: 15px; background:#d7191c;border:1px solid;"/>
+    	<td>20+</td>
+    </tr>
+  </table>
+    <div id="map" class="map"></div>
+    <button type="button" id="export-png">Export PNG</button>
+    <a id="downloadlink" download="map.png">Download Image</a>
+    <script type="text/javascript">
+    var layer = new ol.layer.Tile({
+        source: new ol.source.TileWMS({
+            url: 'https://localhost:8443/geoserver/wms',
+            params: {'LAYERS': 'openessence:district_geometry', 'TILED': true},
+            extent: [-13884991, 2870341, -7455066, 6338219],
+            serverType: 'geoserver',
+          })
+        });
+    
+    var layer2 = new ol.layer.Tile({
+        source: new ol.source.TileWMS({
+            url: 'https://localhost:8443/geoserver/wms',
+            params: {'LAYERS': 'openessence:district_counts', 'TILED': true},
+            extent: [-13884991, 2870341, -7455066, 6338219],
+            serverType: 'geoserver',
+          })
+        });
+    
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+                 layer,
+                 layer2
+               ],
+        renderer: ol.RendererHint.CANVAS,
+        view: new ol.View2D({
+            center: ol.proj.transform([-77.93255, 37.9555], 'EPSG:4326', 'EPSG:3857'),
+            zoom: 7
+        })
+      });
+      
+      var exportPNG = document.getElementById('export-png');
+      var image = document.getElementById('image');
+      exportPNG.addEventListener('click', function(e) {
+    	  var img = map.getRenderer().getCanvas().toDataURL('image/png');
+    	  downloadlink.href = img;
+      });
+	  
+	  
+	      
+    </script>
+  </body>
+</html>
