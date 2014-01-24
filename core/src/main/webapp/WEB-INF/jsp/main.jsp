@@ -126,7 +126,7 @@
 <script type="text/javascript" src="${contextPath}/js/oe/app/widget/Header.js"></script>
 
 <%-- Mapping extensions, these need to be defined first since later code references them --%>
-<!-- 
+ 
 <script type="text/javascript" src="${openLayersPath}/OpenLayers.js"></script>
 <script type="text/javascript" src="${openLayersPath}/lib/OpenLayers/Lang/${locale}.js"></script>
 <script type="text/javascript">
@@ -135,7 +135,7 @@
     if (Ext.isIE) {
         OpenLayers.Tile.Image.prototype.maxGetUrlLength = 2048;
     }
-</script>-->
+</script>
 <script type="text/javascript" src="${closurePath}/goog/base.js"></script>
 <script type="text/javascript" src="${closurePath}/goog/fx/easing.js"></script>
 <script type="text/javascript" src="${closurePath}/goog/dom/dom.js"></script>
@@ -410,6 +410,5 @@
 <script type="text/javascript" src="${contextPath}/js/oe/reporting/defaultDataSourceReportMap.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/reporting/defaultDataSourceReportPanel.js"></script>
 <script type="text/javascript" src="${contextPath}/js/oe/reporting/defaultDataSourceReport.js"></script>
-<script type="text/javascript" src="${contextPath}/js/oe/reporting/mapdashboard.js"></script>
 </body>
 </html>
