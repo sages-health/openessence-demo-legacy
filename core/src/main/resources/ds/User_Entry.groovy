@@ -72,9 +72,12 @@ class User_Entry extends GroovyOeDataEntrySource {
         init([id: 'Algorithm', sqlCol: 'algorithm', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: false,
                      metaData: [grid: [xtype: 'hidden'], form: [xtype: 'hidden', allowBlank: true]]] as HashMap)
         init([id: 'Enabled', sqlCol: 'enabled', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
-        init([id: 'NonExpired', sqlCol: 'non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
-        init([id: 'CredentialsNonExpired', sqlCol: 'credentials_non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
-        init([id: 'AccountNonLocked', sqlCol: 'account_non_locked', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true])
+        init([id: 'NonExpired', sqlCol: 'non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true,
+                     metaData: [ form: [ checked: true, inputType: 'hidden' ] ] ])
+        init([id: 'CredentialsNonExpired', sqlCol: 'credentials_non_expired', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true,
+                     metaData: [ form: [ checked: true, inputType: 'hidden' ] ] ])
+        init([id: 'AccountNonLocked', sqlCol: 'account_non_locked', sqlType: FieldType.BOOLEAN, isResult: true, isEdit: true, isFilter: true,
+                     metaData: [ form: [ checked: true, inputType: 'hidden' ] ] ])
 
         init([id: 'LastName', sqlCol: 'lastname', sqlType: FieldType.TEXT, isResult: true, isEdit: true, isFilter: true,
                 metaData: [grid: [width: 120], form: [allowBlank: true]]])
